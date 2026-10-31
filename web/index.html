@@ -1,0 +1,680 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Football Matchday</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+[hidden]{display:none!important}
+img{max-width:100%}
+/* Layout: the board (a 11x11 grid ring around a football pitch) on the left, a side panel on the right; they stack on narrow screens. The pitch in the middle carries the dice and the action buttons. */
+:root{
+  --bg:#E4EBE8; --surface:#FFFFFF; --surface2:#F0F5F2; --ink:#0F231A; --mute:#566B60; --line:#C5D3CC;
+  --pitch:#2A7A45; --pitch2:#318C4F; --pitchline:rgba(255,255,255,.8); --sqbg:#FBFDFB;
+  --card:#F4C20D; --on-card:#1B1500; --red:#D7263D; --ok:#1E9E55; --shadow:0 1px 0 rgba(15,35,26,.06);
+  --f-display:'Big Shoulders Display','Arial Narrow',Impact,sans-serif;
+  --f-body:'Hanken Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --f-mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0C1411; --surface:#14201A; --surface2:#1A2A23; --ink:#E7F0EA; --mute:#92A89C; --line:#2A3B32;
+  --pitch:#1C5C36; --pitch2:#206A3F; --pitchline:rgba(255,255,255,.55); --sqbg:#17231D; --shadow:none; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0C1411; --surface:#14201A; --surface2:#1A2A23; --ink:#E7F0EA; --mute:#92A89C; --line:#2A3B32;
+  --pitch:#1C5C36; --pitch2:#206A3F; --pitchline:rgba(255,255,255,.55); --sqbg:#17231D; --shadow:none; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:18px 40px}
+.page{max-width:1240px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+header.top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{font-family:var(--f-display);font-weight:900;font-size:clamp(34px,6vw,54px);line-height:.9;letter-spacing:.01em;text-transform:uppercase;margin:0;text-wrap:balance}
+h1 span{color:var(--pitch2)}
+.status{font-family:var(--f-mono);font-size:12px;color:var(--mute);text-align:right}
+.status b{color:var(--ink)}
+#note{min-height:18px;font-size:13px;color:var(--red)}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:20px;align-items:start}
+@media (max-width:1000px){.layout{grid-template-columns:minmax(0,1fr)}}
+
+/* ---------- board ---------- */
+.board-wrap{container-type:inline-size;width:100%;max-width:840px;margin:0 auto}
+.board{display:grid;grid-template-columns:1.55fr repeat(9,1fr) 1.55fr;grid-template-rows:1.55fr repeat(9,1fr) 1.55fr;
+  aspect-ratio:1;background:var(--ink);gap:1px;border:2px solid var(--ink);position:relative}
+.sq{appearance:none;border:0;padding:0;margin:0;font:inherit;color:inherit;text-align:center;position:relative;display:flex;
+  background:var(--sqbg);overflow:hidden;min-width:0;min-height:0;cursor:pointer}
+.sq:focus-visible{outline:3px solid var(--card);outline-offset:-3px;z-index:3}
+.sq.sel{box-shadow:inset 0 0 0 .5cqw var(--card);z-index:2}
+.s-b{flex-direction:column}.s-t{flex-direction:column-reverse}.s-l{flex-direction:row-reverse}.s-r{flex-direction:row}
+.band{flex:0 0 25%;display:flex;gap:.3cqw;align-items:center;justify-content:center;flex-wrap:wrap;padding:.2cqw}
+.stand{display:block;width:1.5cqw;height:1.5cqw;background:#fff;border:1px solid rgba(0,0,0,.45);border-radius:1px}
+.k-pl .stand{border-radius:50%}
+.arena{display:block;width:4cqw;height:1.8cqw;background:var(--red);border:1px solid #fff;border-radius:2px}
+.k-pl .arena{width:2.2cqw;height:2.2cqw;border-radius:50%;background:var(--card);border-color:#000}
+.txt{position:relative;flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:.7cqw .3cqw 0;gap:.2cqw}
+.nm{font-weight:700;font-size:1.28cqw;line-height:1.1;text-wrap:balance;overflow-wrap:anywhere}
+.k-pl .nm{font-style:italic}
+.rl{font-size:1cqw;line-height:1;color:var(--mute);text-transform:uppercase;letter-spacing:.04em}
+.pr{font-family:var(--f-mono);font-size:1.2cqw;font-weight:500;color:var(--mute)}
+.sh{display:none;font-family:var(--f-display);font-weight:800;font-size:2.4cqw;letter-spacing:.03em}
+.oc{position:absolute;top:.5cqw;right:.5cqw;width:1.7cqw;height:1.7cqw;border-radius:50%;border:2px solid var(--sqbg);box-shadow:0 0 0 1px var(--ink)}
+.sq.mort .txt{opacity:.45;background:repeating-linear-gradient(135deg,transparent 0 .8cqw,rgba(128,128,128,.28) .8cqw 1.2cqw)}
+.toks{position:absolute;left:0;right:0;bottom:.4cqw;display:flex;justify-content:center;flex-wrap:wrap;gap:.3cqw;pointer-events:none}
+.tok{width:3cqw;height:3cqw;border-radius:50%;border:.3cqw solid #fff;display:grid;place-items:center;color:#fff;font-family:var(--f-mono);font-weight:700;font-size:1.6cqw;box-shadow:0 1px 3px rgba(0,0,0,.5)}
+.sq.c .nm{font-family:var(--f-display);font-weight:900;font-size:2.8cqw;text-transform:uppercase;letter-spacing:.02em;line-height:.95;font-style:normal}
+.sq.c .sub{font-size:1.2cqw;color:var(--mute);line-height:1.1}
+.sq.c .txt{justify-content:center;padding-top:0}
+.sq.t-gojail .nm{color:var(--red)}
+.sq.t-go .nm{color:var(--ok)}
+.sq.t-chance .nm,.sq.t-chest .nm{text-transform:uppercase;letter-spacing:.02em}
+.sq.t-chance .txt::before,.sq.t-chest .txt::before{content:"";width:2.6cqw;height:3.4cqw;border-radius:2px;margin-top:.4cqw;background:var(--card);border:1px solid rgba(0,0,0,.4);transform:rotate(-8deg)}
+.sq.t-chest .txt::before{background:var(--red);transform:rotate(8deg)}
+.sq.t-tax .nm{text-transform:uppercase}
+@container (max-width:560px){
+  .nm,.rl{display:none}.sq.c .nm{display:block;font-size:3.6cqw}.sq.c .sub{display:none}
+  .sh{display:block}.sq.t-prop .sh{display:none}.pr{font-size:2.3cqw}
+  .stand{width:2cqw;height:2cqw}.tok{width:4.6cqw;height:4.6cqw;font-size:2.6cqw}.oc{width:2.6cqw;height:2.6cqw}
+  .sq.t-chance .txt::before,.sq.t-chest .txt::before{display:none}
+}
+
+/* pitch in the middle */
+.pitch{grid-area:2/2/11/11;position:relative;overflow:hidden;
+  background:repeating-linear-gradient(90deg,var(--pitch) 0 11.11%,var(--pitch2) 11.11% 22.22%);display:grid;place-items:center}
+.pitch::before{content:"";position:absolute;inset:4%;border:2px solid var(--pitchline);pointer-events:none}
+.pitch::after{content:"";position:absolute;left:50%;top:50%;width:26%;aspect-ratio:1;transform:translate(-50%,-50%);border:2px solid var(--pitchline);border-radius:50%;pointer-events:none}
+.pitch .half{position:absolute;left:4%;right:4%;top:50%;height:2px;background:var(--pitchline);pointer-events:none}
+.centre{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:1.6cqw;text-align:center;color:#fff;width:84%;max-height:92%}
+.logo{font-family:var(--f-display);font-weight:900;text-transform:uppercase;font-size:clamp(18px,5.4cqw,46px);line-height:.85;letter-spacing:.02em;text-shadow:0 2px 0 rgba(0,0,0,.25)}
+.logo b{display:block;color:var(--card);font-weight:900}
+.dice{display:flex;gap:1.6cqw}
+.die{width:7.4cqw;aspect-ratio:1;background:#fff;border-radius:18%;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:1.1cqw;gap:.1cqw;box-shadow:0 2px 0 rgba(0,0,0,.35)}
+.die i{border-radius:50%;margin:12%}
+.die i.on{background:#16231B}
+.die.pop{animation:pop .45s cubic-bezier(.2,.9,.3,1.3)}
+@keyframes pop{0%{transform:rotate(-40deg) scale(.5);opacity:.2}100%{transform:none;opacity:1}}
+.say{background:rgba(8,28,17,.72);padding:.9cqw 1.6cqw;border-radius:6px;font-size:clamp(11px,1.65cqw,15px);line-height:1.3;max-width:100%;text-wrap:pretty}
+.say.dim{opacity:.7}
+.acts{display:flex;gap:1cqw;flex-wrap:wrap;justify-content:center}
+.btn{appearance:none;border:0;cursor:pointer;font-family:var(--f-display);font-weight:800;text-transform:uppercase;letter-spacing:.04em;
+  font-size:clamp(13px,2.6cqw,22px);padding:.8cqw 2.4cqw;background:var(--card);color:var(--on-card);border-radius:4px;box-shadow:0 2px 0 rgba(0,0,0,.4)}
+.btn:hover:not(:disabled){filter:brightness(1.06)}
+.btn:active:not(:disabled){transform:translateY(1px);box-shadow:0 1px 0 rgba(0,0,0,.4)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible,.mini:focus-visible,.ghost:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.btn.alt{background:rgba(255,255,255,.16);color:#fff;box-shadow:inset 0 0 0 2px rgba(255,255,255,.7)}
+.lobby{display:flex;flex-direction:column;gap:1.2cqw;align-items:stretch;width:100%}
+.seat{display:flex;align-items:center;gap:1.2cqw;background:rgba(8,28,17,.72);padding:.7cqw 1.4cqw;border-radius:6px;font-size:clamp(11px,1.8cqw,15px);text-align:left}
+.seat .tok{flex:none;width:clamp(18px,3.4cqw,28px);height:clamp(18px,3.4cqw,28px);font-size:clamp(10px,1.8cqw,14px)}
+.seat span.grow{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.seat button{appearance:none;border:0;background:transparent;color:#fff;text-decoration:underline;cursor:pointer;font:inherit;padding:0 4px}
+.winner{font-family:var(--f-display);font-weight:900;text-transform:uppercase;font-size:clamp(20px,6cqw,52px);line-height:.95;color:var(--card)}
+@container (max-width:560px){.centre{gap:1.2cqw}.logo{font-size:6.4cqw}.die{width:9cqw}.say{font-size:2.5cqw}.btn{font-size:3.4cqw;padding:1cqw 3cqw}}
+
+/* ---------- side panel ---------- */
+aside{display:flex;flex-direction:column;gap:12px;min-width:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 14px;box-shadow:var(--shadow);min-width:0}
+.panel h2{font-family:var(--f-display);font-weight:800;text-transform:uppercase;letter-spacing:.06em;font-size:16px;margin:0 0 8px;color:var(--mute)}
+details.panel summary{cursor:pointer;font-family:var(--f-display);font-weight:800;text-transform:uppercase;letter-spacing:.06em;font-size:16px;color:var(--mute)}
+details.panel[open] summary{margin-bottom:8px}
+.prow{display:flex;align-items:center;gap:8px;padding:6px 6px;border-radius:4px;min-width:0}
+.prow.turn{background:var(--surface2);box-shadow:inset 3px 0 0 var(--card)}
+.prow.out{opacity:.45;text-decoration:line-through}
+.pdot{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;color:#fff;font-family:var(--f-mono);font-weight:700;font-size:11px;border:2px solid var(--surface);box-shadow:0 0 0 1px var(--ink)}
+.pname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.pname small{font-weight:500;color:var(--mute)}
+.cash{font-family:var(--f-mono);font-weight:700;font-variant-numeric:tabular-nums}
+.tag{font-size:11px;font-family:var(--f-mono);color:var(--on-card);background:var(--card);padding:1px 5px;border-radius:3px}
+.tag.red{background:var(--red);color:#fff}
+.info h3{margin:0;font-family:var(--f-display);font-weight:900;font-size:24px;line-height:1;text-transform:uppercase}
+.chip{display:inline-block;width:12px;height:12px;border-radius:2px;border:1px solid rgba(0,0,0,.4);vertical-align:-1px;margin-right:6px}
+table.rt{width:100%;border-collapse:collapse;margin-top:8px;font-size:13px}
+table.rt td{padding:3px 0;border-bottom:1px dashed var(--line)}
+table.rt td:last-child{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--mute)}
+.hold{display:flex;flex-direction:column;gap:2px}
+.hrow{display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--line);min-width:0;flex-wrap:wrap}
+.hrow .hn{flex:1;min-width:100px;font-weight:600;overflow:hidden;text-overflow:ellipsis}
+.hrow .hs{font-size:12px;color:var(--mute);font-family:var(--f-mono)}
+.mini{appearance:none;border:1px solid var(--line);background:var(--surface2);color:var(--ink);font:600 12px var(--f-body);padding:3px 7px;border-radius:4px;cursor:pointer}
+.mini:hover:not(:disabled){border-color:var(--ink)}
+.mini:disabled{opacity:.4;cursor:not-allowed}
+.mini.on{background:var(--card);color:var(--on-card);border-color:var(--ink)}
+.offer{appearance:none;width:100%;border:0;cursor:pointer;text-align:left;font:700 15px var(--f-body);padding:10px 14px;border-radius:6px;background:var(--card);color:var(--on-card);box-shadow:0 2px 0 rgba(0,0,0,.25)}
+.offer:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+.ghost{appearance:none;border:1px solid var(--line);background:transparent;color:var(--ink);font:600 13px var(--f-body);padding:6px 12px;border-radius:4px;cursor:pointer}
+.ghost:disabled{opacity:.45;cursor:not-allowed}
+.logl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px;font-size:13px}
+.logl li{padding-left:10px;border-left:2px solid var(--line)}
+.logl li:first-child{border-left-color:var(--card);font-weight:600}
+.rules{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:5px;font-size:13px}
+@media (prefers-reduced-motion:reduce){.die.pop{animation:none}}
+.landing{max-width:440px;margin:0 auto;width:100%;display:flex;flex-direction:column;gap:8px}
+.landing label{font-size:12px;color:var(--mute)}
+.landing input,.invite input{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:4px;background:var(--surface2);color:var(--ink);min-width:0;width:100%}
+.landing input:focus-visible,.invite input:focus-visible{outline:3px solid var(--card);outline-offset:1px}
+.lrow{display:flex;gap:8px;align-items:stretch}
+#code{text-transform:uppercase;letter-spacing:.14em;font-family:var(--f-mono)}
+.go{background:var(--card);color:var(--on-card);border-color:var(--ink);font-weight:700;white-space:nowrap}
+.go:hover:not(:disabled){filter:brightness(1.06)}
+.landing p{margin:2px 0}
+.invite .code{font-family:var(--f-display);font-weight:900;font-size:44px;letter-spacing:.12em;line-height:1}
+</style>
+</head>
+<body>
+
+<div class="page">
+  <header class="top">
+    <h1>Football <span>Matchday</span></h1>
+    <div class="status" id="status">Loading the table&hellip;</div>
+  </header>
+  <div id="note" role="status" aria-live="polite"></div>
+  <div id="offerbar" role="status" aria-live="polite"></div>
+  <section id="landing" class="panel landing">
+    <h2>Start or join a match</h2>
+    <label for="name">Your name</label>
+    <input id="name" maxlength="20" autocomplete="nickname" placeholder="Name shown to the other players">
+    <div class="lrow"><button class="ghost go" id="create">Create a match</button></div>
+    <p class="muted">or join one a friend started</p>
+    <label for="code">Match code</label>
+    <div class="lrow"><input id="code" maxlength="8" autocomplete="off" placeholder="ABCDE"><button class="ghost go" id="join-code">Join</button></div>
+  </section>
+  <div class="layout" hidden>
+    <div class="board-wrap"><div class="board" id="board"></div></div>
+    <aside id="side"></aside>
+  </div>
+</div>
+
+<script src="/rules.js"></script>
+<script>
+'use strict';
+const {RV,G,GN,SQ,CARDS,fmtMoney,isPl,topName,unitName,upLabel,upBuilt,owned,groupSq,hasSet,supply,rentFor,aliveCount,canBuild,canSell,canMort,canUnmort,unmortCost,mortFee,tradable,validTrade,tradeFees}=MatchdayRules;
+
+/* ================= UI ================= */
+const $=q=>document.querySelector(q);
+function h(tag,attrs,...kids){
+  const e=document.createElement(tag);
+  for(const k in (attrs||{})){
+    const v=attrs[k];
+    if(k==='class')e.className=v;
+    else if(k==='style')e.style.cssText=v;
+    else if(k.startsWith('on'))e.addEventListener(k.slice(2),v);
+    else if(v===true)e.setAttribute(k,'');
+    else if(v!==false&&v!=null)e.setAttribute(k,v);
+  }
+  for(const c of kids.flat(Infinity)){if(c==null||c===false)continue;e.append(c.nodeType?c:document.createTextNode(String(c)))}
+  return e;
+}
+const PCOL=['#E4572E','#2E86DE','#B8860B','#7B4BC4','#12A39A','#D6458F'];
+const PIPS={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
+
+let ws=null,state=null,roomCode=null,myId='me',sel=null,ready=false,canWrite=true,lastDice='',confirmReset=false,noteTimer=0,mgr=null,sideDirty=false,wantRoom=null,wantCreate=false,retry=0,pname='',memTok=null;
+const view=()=>state;
+const legacy=()=>false;
+
+function note(t){const el=$('#note');el.textContent=t||'';clearTimeout(noteTimer);if(t)noteTimer=setTimeout(()=>{el.textContent=''},7000)}
+function coord(i){
+  if(i<=10)return[11-i,11];
+  if(i<=19)return[1,21-i];
+  if(i<=30)return[1+(i-20),1];
+  return[11,i-29];
+}
+function sideOf(i){if(i%10===0)return'c';if(i<10)return'b';if(i<20)return'l';if(i<30)return't';return'r'}
+function nm(s,i){
+  const p=s.players[i];if(!p)return'?';
+  if(p.hot)return p.hn||('Practice '+(i+1));
+  return p.name||('Player '+(i+1));
+}
+function fmt(s,t){return t.replace(/\{(\d)\}/g,(m,i)=>nm(s,+i))}
+function controls(s,i){
+  const p=s&&s.players[i];
+  return !!p&&!p.bankrupt&&myId!=null&&(p.uid===myId||(p.hot&&s.host===myId));
+}
+function mySeat(s){return s.players.findIndex(p=>p.uid&&p.uid===myId)}
+
+function sendDo(o){
+  if(ws&&ws.readyState===1)ws.send(JSON.stringify(Object.assign({t:'do'},o)));
+  else note('Not connected. Trying to reconnect…');
+}
+const A={
+  join:()=>sendDo({a:'join',name:pname}),
+  leave:()=>sendDo({a:'leave'}),
+  addHot:()=>sendDo({a:'addHot'}),
+  remove:i=>sendDo({a:'remove',seat:i}),
+  takeover:i=>sendDo({a:'takeover',seat:i}),
+  start:()=>sendDo({a:'start'}),
+  reset:()=>sendDo({a:'reset'})
+};
+let draft={from:null,to:null,give:[],get:[],gc:'',rc:''};
+function sendOffer(){
+  const gc=Math.max(0,Math.floor(+draft.gc||0)),rc=Math.max(0,Math.floor(+draft.rc||0));
+  sendDo({a:'offer',from:draft.from,to:draft.to,gs:draft.give.slice(),gc,rs:draft.get.slice(),rc});
+  draft.give=[];draft.get=[];draft.gc='';draft.rc='';
+}
+
+/* ---------- board ---------- */
+function dieEl(v,pop){const d=h('div',{class:'die'+(pop?' pop':''),role:'img','aria-label':'Die showing '+v});const on=PIPS[v]||[];for(let k=0;k<9;k++)d.append(h('i',{class:on.includes(k)?'on':''}));return d}
+
+function cellEl(i,s){
+  const q=SQ[i],side=sideOf(i),[c,r]=coord(i);
+  const live=s&&s.phase!=='lobby';
+  const o=live?s.own[i]:undefined;
+  const el=h('button',{class:`sq t-${q.t} k-${q.k||'x'} s-${side}${side==='c'?' c':''}${sel===i?' sel':''}${live&&s.mort[i]?' mort':''}`,style:`grid-column:${c};grid-row:${r}`,'aria-label':q.n+(q.p?' '+fmtMoney(q.p):''),onclick:()=>{sel=i;render()}});
+  if(q.t==='prop'){
+    const n=live?(s.stands[i]||0):0;
+    const band=h('div',{class:'band',style:'background:'+G[q.g].c});
+    if(n===5)band.append(h('i',{class:'arena'}));else for(let k=0;k<n;k++)band.append(h('i',{class:'stand'}));
+    el.append(band);
+  }
+  const txt=h('div',{class:'txt'});
+  txt.append(h('div',{class:'nm'},q.n));
+  if(q.role)txt.append(h('div',{class:'rl'},q.role));
+  if(side==='c'){
+    let u=q.u;
+    if(q.t==='park'&&live&&(s.pot||0)>0)u='Pot '+fmtMoney(s.pot);
+    if(u)txt.append(h('div',{class:'sub'},u));
+  }
+  if(q.p)txt.append(h('div',{class:'pr'},'£'+q.p));
+  else if(q.t==='tax')txt.append(h('div',{class:'pr'},'£'+q.a));
+  if(q.t!=='prop')txt.append(h('div',{class:'sh'},q.s||q.n));
+  if(o!==undefined)txt.append(h('span',{class:'oc',style:'background:'+PCOL[o]}));
+  if(live){
+    const here=s.players.map((p,pi)=>({p,pi})).filter(x=>!x.p.bankrupt&&x.p.pos===i);
+    if(here.length){const t=h('div',{class:'toks'});here.forEach(x=>t.append(h('span',{class:'tok',style:'background:'+PCOL[x.pi],title:nm(s,x.pi)},x.pi+1)));txt.append(t)}
+  }
+  el.append(txt);
+  return el;
+}
+
+function centreEl(s){
+  const box=h('div',{class:'centre'});
+  box.append(h('div',{class:'logo'},'Football',h('b',null,'Matchday')));
+  const msg=t=>box.append(h('div',{class:'say'},t));
+  if(!ready||!s){msg('Connecting to the table…');return box}
+  if(s.phase==='lobby'){
+    const lob=h('div',{class:'lobby'});
+    s.players.forEach((p,i)=>{
+      const row=h('div',{class:'seat'},h('span',{class:'tok',style:'background:'+PCOL[i]},i+1),h('span',{class:'grow'},nm(s,i)+(p.uid===myId?' (you)':'')+(p.uid&&p.uid===s.host?' · host':'')+(p.hot?' · practice seat':'')));
+      if(s.host===myId&&!(p.uid&&p.uid===s.host))row.append(h('button',{onclick:()=>A.remove(i),'aria-label':'Remove seat'},'Remove'));
+      if(p.uid===myId&&s.host!==myId)row.append(h('button',{onclick:A.leave},'Leave'));
+      lob.append(row);
+    });
+    box.append(lob);
+    const acts=h('div',{class:'acts'});
+    const seated=s.players.some(p=>p.uid===myId);
+    if(!seated)acts.append(h('button',{class:'btn',id:'join',disabled:!canWrite||s.players.length>=6,onclick:A.join},'Join the table'));
+    if(s.host===myId){
+      acts.append(h('button',{class:'btn alt',id:'add-hot',disabled:s.players.length>=6,onclick:A.addHot},'Add practice seat'));
+      acts.append(h('button',{class:'btn',id:'start',disabled:s.players.length<2,onclick:A.start},'Kick off'));
+    }
+    box.append(acts);
+    if(s.host!==myId&&seated)msg('Waiting for the host to kick off.');
+    else if(s.host===myId&&s.players.length<2)msg('Need at least two seats. Invite someone, or add a practice seat to try it alone.');
+    return box;
+  }
+  /* play or over */
+  const pop=lastDice!==s.dice.join(',');lastDice=s.dice.join(',');
+  box.append(h('div',{class:'dice'},dieEl(s.dice[0],pop),dieEl(s.dice[1],pop)));
+  if(s.phase==='over'){
+    box.append(h('div',{class:'winner'},nm(s,s.winner)+' wins the league'));
+    if(s.host===myId)box.append(h('div',{class:'acts'},h('button',{class:'btn',id:'again',onclick:A.reset},'Play again')));
+    return box;
+  }
+  if(s.stage==='auction'&&s.auc){
+    const a=s.auc,q=SQ[a.sq];
+    msg(`Auction: ${q.n}, list price ${fmtMoney(q.p)}. ${a.high!=null?'High bid '+fmtMoney(a.bid)+' by '+nm(s,a.high)+'.':'No bids yet.'}`);
+    if(controls(s,a.cur)){
+      const bp=s.players[a.cur];
+      box.append(h('div',{class:'say dim'},nm(s,a.cur)+', your bid. You have '+fmtMoney(bp.cash)+'.'));
+      const acts=h('div',{class:'acts'});
+      [10,50,100].forEach(inc=>acts.append(h('button',{class:'btn',disabled:bp.cash<a.bid+inc,onclick:()=>sendDo({a:'bid',inc})},'Bid '+fmtMoney(a.bid+inc))));
+      acts.append(h('button',{class:'btn alt',id:'fold',onclick:()=>sendDo({a:'fold'})},'Drop out'));
+      box.append(acts);
+    }else box.append(h('div',{class:'say dim'},'Waiting for '+nm(s,a.cur)+' to bid or drop out…'));
+    return box;
+  }
+  const p=s.players[s.turn];
+  msg(fmt(s,s.log[0]||''));
+  const mine=controls(s,s.turn);
+  const acts=h('div',{class:'acts'});
+  if(mine){
+    if(s.stage==='roll'){
+      if(p.inJail){
+        acts.append(h('button',{class:'btn',id:'roll',onclick:()=>sendDo({a:'roll'})},'Roll for doubles'));
+        acts.append(h('button',{class:'btn alt',disabled:p.cash<50,onclick:()=>sendDo({a:'bail'})},'Pay £50'));
+        if(p.jf.length>0)acts.append(h('button',{class:'btn alt',onclick:()=>sendDo({a:'card'})},'Use card'));
+      }else acts.append(h('button',{class:'btn',id:'roll',onclick:()=>sendDo({a:'roll'})},'Roll dice'));
+    }else if(s.stage==='buy'){
+      const q=SQ[s.buy];
+      acts.append(h('button',{class:'btn',id:'buy',disabled:p.cash<q.p,onclick:()=>sendDo({a:'buy'})},'Buy · '+fmtMoney(q.p)));
+      acts.append(h('button',{class:'btn alt',onclick:()=>sendDo({a:'pass'})},'Auction it'));
+    }else acts.append(h('button',{class:'btn',id:'end',onclick:()=>sendDo({a:'end'})},'End turn'));
+    box.append(acts);
+  }else{
+    box.append(h('div',{class:'say dim'},'Waiting for '+nm(s,s.turn)+'…'));
+  }
+  return box;
+}
+
+function renderBoard(){
+  const s=view(),b=$('#board');
+  b.replaceChildren();
+  for(let i=0;i<40;i++)b.append(cellEl(i,s));
+  b.append(h('div',{class:'pitch'},h('div',{class:'half'}),centreEl(s)));
+}
+
+/* ---------- side panel ---------- */
+function infoPanel(s){
+  const live=s&&s.phase!=='lobby';
+  const i=sel!=null?sel:(live&&s.phase==='play'?s.players[s.turn].pos:0);
+  const q=SQ[i];
+  const box=h('div',{class:'panel info'});
+  box.append(h('h2',null,'Square'));
+  box.append(h('h3',null,q.t==='prop'?h('span',{class:'chip',style:'background:'+G[q.g].c}):null,q.n));
+  if(q.t==='prop'){
+    box.append(h('div',{class:'muted'},GN[q.g]+' · '+(isPl(q)?'Player, '+q.role.toLowerCase():'Stadium')+' · '+fmtMoney(q.p)));
+    const u=unitName(q,2),u1=unitName(q,1);
+    const rows=[['Rent',fmtMoney(q.r[0])],['Whole league owned',fmtMoney(q.r[0]*2)],['1 '+u1,fmtMoney(q.r[1])],['2 '+u,fmtMoney(q.r[2])],['3 '+u,fmtMoney(q.r[3])],['4 '+u,fmtMoney(q.r[4])],[topName(q),fmtMoney(q.r[5])],['Each '+u1+' costs',fmtMoney(G[q.g].cost)],['Mortgage value',fmtMoney(q.p/2)]];
+    box.append(h('table',{class:'rt'},rows.map(r=>h('tr',null,h('td',null,r[0]),h('td',null,r[1])))));
+  }else if(q.t==='st'){
+    box.append(h('div',{class:'muted'},'Coach line · '+fmtMoney(q.p)));
+    box.append(h('table',{class:'rt'},[['1 line owned','£25'],['2 lines','£50'],['3 lines','£100'],['4 lines','£200'],['Mortgage value',fmtMoney(q.p/2)]].map(r=>h('tr',null,h('td',null,r[0]),h('td',null,r[1])))));
+  }else if(q.t==='ut'){
+    box.append(h('div',{class:'muted'},'Utility · '+fmtMoney(q.p)+' · mortgage '+fmtMoney(q.p/2)));
+    box.append(h('p',null,'Rent is 4× the dice if the owner has one utility, 10× if they have both.'));
+  }else if(q.t==='park'){
+    box.append(h('p',null,'Pay £20 into the pot. If a different player paid in earlier, you collect their money first. With only two players left, nothing happens.'));
+    if(live)box.append(h('p',{class:'muted'},'Pot now: '+fmtMoney(s.pot||0)+(s.pot>0&&s.potBy!=null?' (from '+nm(s,s.potBy)+')':'')));
+  }else{
+    const d={go:'Pass or land here to collect £200 season-ticket money.',chance:'Draw a Transfer Window card.',chest:'Draw a Fan Club card.',tax:'Pay '+(q.a?fmtMoney(q.a):'')+' to the bank.',jail:'Just watching when you land here. If you are sent off, you wait here: pay £50, use a card, or roll doubles. After three failed rolls you pay £50 and move.',gojail:'Land here and you go straight to the Dugout. No £200.'};
+    box.append(h('p',null,d[q.t]||''));
+  }
+  if(live&&(q.t==='prop'||q.t==='st'||q.t==='ut')){
+    const o=s.own[i];
+    if(o===undefined)box.append(h('p',{class:'muted'},'Unowned.'));
+    else box.append(h('p',null,'Owner: ',h('b',null,nm(s,o)),s.mort[i]?' · mortgaged':(s.stands[i]?' · '+upLabel(q,s.stands[i]):'')));
+  }
+  return box;
+}
+
+function playersPanel(s){
+  const box=h('div',{class:'panel'});
+  box.append(h('h2',null,s.phase==='lobby'?'At the table':'Squad'));
+  s.players.forEach((p,i)=>{
+    const row=h('div',{class:'prow'+(s.phase==='play'&&s.turn===i?' turn':'')+(p.bankrupt?' out':'')});
+    row.append(h('span',{class:'pdot',style:'background:'+PCOL[i]},i+1));
+    row.append(h('span',{class:'pname'},nm(s,i),p.uid&&p.uid===myId?h('small',null,' (you)'):null));
+    if(s.phase!=='lobby'){
+      if(p.inJail)row.append(h('span',{class:'tag red'},'Dugout'));
+      if(p.jf&&p.jf.length>0)row.append(h('span',{class:'tag'},'Card'+(p.jf.length>1?' ×'+p.jf.length:'')));
+      row.append(h('span',{class:'cash'},fmtMoney(p.cash)));
+      if(s.host===myId&&s.phase==='play'&&!p.hot&&p.uid&&p.uid!==myId&&!p.bankrupt)row.append(h('button',{class:'mini',title:'Take over this seat if the player has left',onclick:()=>A.takeover(i)},'Host plays'));
+    }
+    box.append(row);
+  });
+  return box;
+}
+
+function holdingsPanel(s){
+  const mine=s.players.map((p,i)=>i).filter(i=>controls(s,i));
+  if(!mine.length)return null;
+  let cp=mgr!=null&&mine.includes(mgr)?mgr:(s.phase==='play'&&mine.includes(s.turn)?s.turn:mine[0]);
+  const box=h('div',{class:'panel'});
+  box.append(h('h2',null,'Holdings'));
+  if(mine.length>1){
+    box.append(h('div',{style:'margin-bottom:8px'},'Manage ',h('select',{id:'mgr',onchange:e=>{mgr=+e.target.value;render()},style:'font:inherit;padding:3px 6px;border:1px solid var(--line);border-radius:4px;background:var(--surface2);color:var(--ink)'},mine.map(i=>h('option',{value:i,selected:i===cp},nm(s,i))))));
+  }else box.append(h('div',{class:'muted',style:'margin-bottom:6px'},nm(s,cp)));
+  const hold=owned(s,cp);
+  const sup=supply(s);
+  if(!hold.length){box.append(h('p',{class:'muted'},'No grounds yet. Land on one and buy it, win it at auction, or trade for it.'))}
+  const can=s.phase==='play'&&s.stage!=='auction';
+  const list=h('div',{class:'hold'});
+  hold.forEach(i=>{
+    const q=SQ[i],n=s.stands[i]||0;
+    const row=h('div',{class:'hrow'});
+    row.append(h('span',{class:'chip',style:'background:'+(q.t==='prop'?G[q.g].c:'var(--mute)')}));
+    row.append(h('span',{class:'hn'},q.n));
+    row.append(h('span',{class:'hs'},s.mort[i]?'mortgaged':(q.t==='prop'?upLabel(q,n):'')));
+    if(can){
+      if(q.t==='prop'){
+        row.append(h('button',{class:'mini',disabled:!canBuild(s,cp,i),title:'Build for '+fmtMoney(G[q.g].cost),'aria-label':'Build at '+q.n,onclick:()=>sendDo({a:'build',seat:cp,sq:i})},'+'));
+        row.append(h('button',{class:'mini',disabled:!canSell(s,cp,i),title:'Sell back to the bank for half','aria-label':'Sell at '+q.n,onclick:()=>sendDo({a:'sell',seat:cp,sq:i})},'−'));
+      }
+      if(s.mort[i])row.append(h('button',{class:'mini',disabled:!canUnmort(s,cp,i),onclick:()=>sendDo({a:'unmort',seat:cp,sq:i})},'Lift '+fmtMoney(unmortCost(i))));
+      else row.append(h('button',{class:'mini',disabled:!canMort(s,cp,i),onclick:()=>sendDo({a:'mort',seat:cp,sq:i})},'Mortgage'));
+    }
+    list.append(row);
+  });
+  box.append(list);
+  box.append(h('p',{class:'muted',style:'margin:8px 0 0;font-size:12px'},'Build, sell and mortgage whenever you like, even on other players\' turns. + builds one (whole league needed, built evenly). − sells one for half. Bank supply: '+sup.small+' stands or trophies, '+sup.big+' Grand Stadiums or Legends.'));
+  return box;
+}
+
+function offerDesc(list,cash){const parts=list.map(i=>SQ[i].n);if(cash)parts.push(fmtMoney(cash));return parts.length?parts.join(', '):'nothing'}
+
+function tradePanel(s){
+  const box=h('div',{class:'panel',id:'trade-panel'});
+  box.append(h('h2',null,'Trade'));
+  if(s.trade){
+    const t=s.trade;
+    box.append(h('p',{style:'margin:0 0 6px'},h('b',null,nm(s,t.from)),' gives ',offerDesc(t.gs,t.gc),'.'));
+    box.append(h('p',{style:'margin:0 0 8px'},h('b',null,nm(s,t.to)),' gives ',offerDesc(t.rs,t.rc),'.'));
+    const [fa,fb]=tradeFees(s,t);
+    if(fa+fb>0)box.append(h('p',{class:'muted',style:'margin:0 0 8px;font-size:12px'},'Mortgaged grounds cost the new owner a bank fee of 10% of the mortgage value: '+nm(s,t.from)+' pays '+fmtMoney(fa)+', '+nm(s,t.to)+' pays '+fmtMoney(fb)+'.'));
+    const row=h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'});
+    if(controls(s,t.to))row.append(h('button',{class:'ghost',id:'accept',disabled:!!s.auc||!validTrade(s,t),onclick:()=>sendDo({a:'accept'})},'Accept'),h('button',{class:'ghost',onclick:()=>sendDo({a:'decline'})},'Decline'));
+    if(controls(s,t.from))row.append(h('button',{class:'ghost',onclick:()=>sendDo({a:'withdraw'})},'Withdraw'));
+    if(row.children.length)box.append(row);
+    if(s.auc)box.append(h('p',{class:'muted',style:'margin:8px 0 0;font-size:12px'},'Offers wait until the auction ends.'));
+    else if(controls(s,t.to)&&!validTrade(s,t))box.append(h('p',{class:'muted',style:'margin:8px 0 0;font-size:12px'},'This offer no longer works. Decline it.'));
+    return box;
+  }
+  const mine=s.players.map((p,i)=>i).filter(i=>controls(s,i));
+  if(!mine.length){box.append(h('p',{class:'muted',style:'margin:0'},'Seated players can offer trades here.'));return box}
+  if(s.auc){box.append(h('p',{class:'muted',style:'margin:0'},'Trades pause during an auction.'));return box}
+  const alive=s.players.map((p,i)=>i).filter(i=>!s.players[i].bankrupt);
+  if(!mine.includes(draft.from)){draft.from=mine[0];draft.give=[];draft.get=[]}
+  const others=alive.filter(i=>i!==draft.from);
+  if(!others.includes(draft.to)){draft.to=others[0];draft.get=[]}
+  if(draft.to==null){box.append(h('p',{class:'muted',style:'margin:0'},'Nobody to trade with.'));return box}
+  draft.give=draft.give.filter(i=>tradable(s,draft.from,i));
+  draft.get=draft.get.filter(i=>tradable(s,draft.to,i));
+  const pick=(id,val,opts,on)=>h('select',{id,onchange:e=>on(+e.target.value),style:'font:inherit;padding:3px 6px;border:1px solid var(--line);border-radius:4px;background:var(--surface2);color:var(--ink);max-width:100%'},opts.map(i=>h('option',{value:i,selected:i===val},nm(s,i))));
+  const top=h('div',{style:'display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px'});
+  if(mine.length>1)top.append('From',pick('tr-from',draft.from,mine,v=>{draft.from=v;draft.give=[];render()}));
+  top.append('Offer to',pick('tr-to',draft.to,others,v=>{draft.to=v;draft.get=[];render()}));
+  box.append(top);
+  const chips=(who,list,key)=>{
+    const props=owned(s,who).filter(i=>tradable(s,who,i));
+    const wrap=h('div',{style:'display:flex;flex-wrap:wrap;gap:4px'});
+    if(!props.length)wrap.append(h('span',{class:'muted'},'No tradable grounds'));
+    props.forEach(i=>{
+      const on=list.includes(i);
+      wrap.append(h('button',{class:'mini'+(on?' on':''),'aria-pressed':on?'true':'false',onclick:()=>{draft[key]=on?list.filter(x=>x!==i):list.concat(i);render()}},h('span',{class:'chip',style:'margin-right:4px;background:'+(SQ[i].t==='prop'?G[SQ[i].g].c:'var(--mute)')}),SQ[i].n+(s.mort[i]?' (mortgaged)':'')));
+    });
+    return wrap;
+  };
+  const cash=(id,key)=>h('input',{type:'number',id,min:0,step:10,inputmode:'numeric',value:draft[key],placeholder:'0','aria-label':'Cash',oninput:e=>{draft[key]=e.target.value},style:'width:88px;font:inherit;padding:3px 6px;border:1px solid var(--line);border-radius:4px;background:var(--surface2);color:var(--ink)'});
+  box.append(h('div',{class:'muted',style:'font-size:12px;margin-bottom:4px'},'You give'),chips(draft.from,draft.give,'give'),h('div',{style:'margin:6px 0 10px;display:flex;gap:6px;align-items:center'},'plus £',cash('tr-gc','gc')));
+  box.append(h('div',{class:'muted',style:'font-size:12px;margin-bottom:4px'},'You get'),chips(draft.to,draft.get,'get'),h('div',{style:'margin:6px 0 10px;display:flex;gap:6px;align-items:center'},'plus £',cash('tr-rc','rc')));
+  const empty=!draft.give.length&&!draft.get.length&&!(+draft.gc>0)&&!(+draft.rc>0);
+  box.append(h('button',{class:'ghost',id:'send-offer',disabled:empty,onclick:sendOffer},'Send offer'));
+  box.append(h('p',{class:'muted',style:'margin:8px 0 0;font-size:12px'},'Grounds in a league with stands or trophies cannot be traded. Sell them first.'));
+  return box;
+}
+
+function logPanel(s){
+  const box=h('div',{class:'panel'});
+  box.append(h('h2',null,'Match log'));
+  if(!s.log.length){box.append(h('p',{class:'muted'},'Nothing yet.'));return box}
+  box.append(h('ul',{class:'logl'},s.log.slice(0,14).map(t=>h('li',null,fmt(s,t)))));
+  return box;
+}
+
+function rulesPanel(open){
+  const box=h('details',{class:'panel'});
+  if(open)box.setAttribute('open','');
+  box.append(h('summary',null,'Rules'));
+  box.append(h('ol',{class:'rules'},
+    h('li',null,'Everyone starts with £1,500. A random player kicks off. Roll two dice and move round the board.'),
+    h('li',null,'Roll doubles and you go again. A third double in a row and you are sent off to the Dugout.'),
+    h('li',null,'Pass or land on Kick-off and collect £200.'),
+    h('li',null,'Land on an unowned ground and you may buy it at its price. If you decline or cannot pay, it goes to auction. Everyone can bid in £10, £50 or £100 steps, or drop out.'),
+    h('li',null,'Land on someone else\'s ground and pay rent. Own a whole league with nothing built and rent doubles. Coach lines pay £25, £50, £100, £200. Utilities pay 4× the dice, or 10× with both.'),
+    h('li',null,'Own a whole league and you can build, evenly across it: four stands (or trophies for players), then a Grand Stadium (or Legend). The bank has 32 small upgrades and 12 big ones. You can build, sell (for half) and mortgage at any time, not only on your turn.'),
+    h('li',null,'Mortgage a ground for half its price. It collects no rent. Lift it by paying that half plus 10%. Receiving a mortgaged ground in a trade or bankruptcy costs a 10% fee on the mortgage value. A ground cannot be mortgaged while its league has stands.'),
+    h('li',null,'The Dugout: you go there from Sent Off!, a third double, or a card. You do not collect £200. To leave, pay £50, use a Get-out card, or roll doubles. After three failed turns you pay £50 and move. You still collect rent while there.'),
+    h('li',null,'Transfer Window and Fan Club cards: 16 each, including Get-out cards that you keep until used.'),
+    h('li',null,'Half-Time: with three or more players, pay £20 into the pot. If a different player paid in earlier, you collect it first. With only two players, nothing happens.'),
+    h('li',null,'Trades: swap grounds and cash with another player, who must accept. Grounds in a league with stands cannot be traded.'),
+    h('li',null,'If you owe more than you have, stands are sold and grounds mortgaged for you. Still short and you are out. Your assets go to the player you owed, or to auction if you owed the bank. Last club standing wins.'),
+    h('li',null,'Not included: auctions when two players want the last stands, and selling Get-out cards.')));
+  return box;
+}
+function sharePanel(){
+  const code=roomCode||'';
+  const link=location.origin+location.pathname+'#'+code;
+  const box=h('div',{class:'panel invite'});
+  box.append(h('h2',null,'Invite players'));
+  box.append(h('div',{class:'code'},code));
+  box.append(h('p',{class:'muted',style:'margin:6px 0 8px'},'Send this link, or give them the code on the start screen.'));
+  const inp=h('input',{id:'invite-link',readonly:true,value:link,'aria-label':'Invite link'});
+  const btn=h('button',{class:'ghost',id:'copy',style:'margin-top:8px',onclick:()=>{
+    const done=()=>{btn.textContent='Copied';setTimeout(()=>{btn.textContent='Copy link'},1800)};
+    try{navigator.clipboard.writeText(link).then(done,()=>{inp.select()})}catch(e){inp.select()}
+  }},'Copy link');
+  box.append(inp,btn);
+  return box;
+}
+
+function renderSide(){
+  const s=view(),side=$('#side');
+  side.replaceChildren();
+  if(!ready)return;
+  if(!s)return;
+  side.append(playersPanel(s));
+  if(s.phase==='play')side.append(tradePanel(s));
+  if(s.phase!=='lobby'){
+    const hp=holdingsPanel(s);
+    side.append(infoPanel(s));
+    if(hp)side.append(hp);
+    side.append(logPanel(s));
+    if(s.host===myId){
+      const box=h('div',{class:'panel'});
+      box.append(h('h2',null,'Host'));
+      box.append(h('button',{class:'ghost',id:'reset',onclick:()=>{if(confirmReset){confirmReset=false;A.reset()}else{confirmReset=true;render();setTimeout(()=>{confirmReset=false;render()},5000)}}},confirmReset?'Tap again to end this match':'Back to lobby'));
+      side.append(box);
+    }
+    side.append(rulesPanel(false));
+  }else{
+    side.append(infoPanel(s),sharePanel(),rulesPanel(true));
+  }
+}
+
+function renderHead(){
+  const s=view(),el=$('#status');
+  if(!ready){el.textContent='Loading the table…';return}
+  if(!s){el.textContent=ws&&ws.readyState===1?'Not in a match':'Connecting…';return}
+  if(s.phase==='lobby')el.replaceChildren('Match ',h('b',null,roomCode||''),' · '+s.players.length+' seated');
+  else if(s.phase==='over')el.replaceChildren(h('b',null,'Final whistle'));
+  else if(s.stage==='auction'&&s.auc)el.replaceChildren('Auction · ',h('b',null,SQ[s.auc.sq].n));
+  else el.replaceChildren('On the ball · ',h('b',null,nm(s,s.turn)));
+}
+function renderOfferBar(){
+  const s=view(),ob=$('#offerbar');
+  ob.replaceChildren();
+  if(s&&s.phase==='play'&&s.trade&&controls(s,s.trade.to))
+    ob.append(h('button',{class:'offer',onclick:()=>{const el=$('#trade-panel');if(el)el.scrollIntoView({behavior:'smooth',block:'center'})}},nm(s,s.trade.from)+' has offered you a trade. Tap to review.'));
+}
+function render(){
+  $('#landing').hidden=!!state;
+  document.querySelector('.layout').hidden=!state;
+  renderHead();renderOfferBar();renderBoard();
+  const a=document.activeElement;
+  if(a&&(a.tagName==='INPUT'||a.tagName==='SELECT')&&a.closest('#side'))sideDirty=true;else renderSide();
+}
+document.addEventListener('focusout',()=>{if(sideDirty){sideDirty=false;setTimeout(render,0)}});
+
+const LS={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+function token(){
+  let t=LS.get('mm_token')||memTok;
+  if(!t||t.length<16){
+    const a=new Uint8Array(24);crypto.getRandomValues(a);
+    t=Array.from(a,b=>b.toString(16).padStart(2,'0')).join('');
+    memTok=t;LS.set('mm_token',t);
+  }
+  return t;
+}
+function enter(){
+  if(!ws||ws.readyState!==1)return;
+  if(wantCreate)ws.send(JSON.stringify({t:'create',token:token(),name:pname}));
+  else if(wantRoom)ws.send(JSON.stringify({t:'join',room:wantRoom,token:token(),name:pname}));
+}
+function leaveRoomView(msg){
+  state=null;roomCode=null;wantRoom=null;wantCreate=false;ready=true;sel=null;
+  try{history.replaceState(null,'',location.pathname)}catch(e){}
+  if(msg)note(msg);
+  render();
+}
+function connect(){
+  const proto=location.protocol==='https:'?'wss':'ws';
+  ws=new WebSocket(proto+'://'+location.host+'/ws');
+  ws.onopen=()=>{retry=0;note('');enter();render()};
+  ws.onmessage=ev=>{
+    let m;try{m=JSON.parse(ev.data)}catch(e){return}
+    if(m.t==='state'){
+      state=m.state;roomCode=m.code;wantRoom=m.code;wantCreate=false;ready=true;
+      if(location.hash.slice(1)!==m.code){try{history.replaceState(null,'','#'+m.code)}catch(e){}}
+      render();
+    }else if(m.t==='error'){
+      if(m.code==='no_room')leaveRoomView('No match with that code. Check it and try again.');
+      else if(m.code==='too_many_rooms')leaveRoomView('The server is full of matches right now. Try again later.');
+      else note('Something went wrong ('+m.code+').');
+    }else if(m.t==='rejected'){
+      note('That move was not allowed. The table may have just changed.');
+    }else if(m.t==='notice'){
+      if(m.code==='started')note('That match has already started, so you are watching.');
+      else if(m.code==='full')note('That match already has six players, so you are watching.');
+    }
+  };
+  ws.onclose=()=>{
+    ws=null;render();
+    const wait=Math.min(10000,500*Math.pow(2,retry++));
+    setTimeout(connect,wait);
+  };
+  ws.onerror=()=>{try{ws&&ws.close()}catch(e){}};
+}
+function startFromLanding(create){
+  const nm=$('#name').value.trim();
+  if(!nm){note('Enter your name first.');$('#name').focus();return}
+  pname=nm;LS.set('mm_name',nm);
+  if(create){wantCreate=true;wantRoom=null}
+  else{
+    const c=$('#code').value.toUpperCase().replace(/[^A-Z0-9]/g,'');
+    if(c.length<4){note('Enter the match code your host gave you.');$('#code').focus();return}
+    wantRoom=c;wantCreate=false;
+  }
+  note('');
+  enter();
+}
+$('#create').addEventListener('click',()=>startFromLanding(true));
+$('#join-code').addEventListener('click',()=>startFromLanding(false));
+$('#code').addEventListener('keydown',e=>{if(e.key==='Enter')startFromLanding(false)});
+$('#name').addEventListener('keydown',e=>{if(e.key==='Enter')startFromLanding(!$('#code').value.trim())});
+window.addEventListener('hashchange',()=>{
+  const c=location.hash.slice(1).toUpperCase();
+  if(c&&c!==roomCode&&pname){wantRoom=c;wantCreate=false;enter()}
+  else if(c&&c!==roomCode){$('#code').value=c}
+});
+pname=LS.get('mm_name')||'';
+$('#name').value=pname;
+const hashCode=location.hash.slice(1).toUpperCase().replace(/[^A-Z0-9]/g,'');
+if(hashCode){$('#code').value=hashCode;if(pname)wantRoom=hashCode}
+render();
+connect();
+</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+# Run locally with:  docker compose up --build
+# Then open http://localhost:3000
+services:
+  matchday:
+    build: .
+    image: football-matchday:latest
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: "3000"
+      DATA_DIR: /data
+      # MAX_ROOMS: "200"        # most matches kept at once
+      # ROOM_TTL_DAYS: "30"     # saved matches not touched for this long are deleted at start-up
+    volumes:
+      # A named volume keeps saved matches across restarts and rebuilds.
+      # On TrueNAS, swap this for a bind mount to a dataset, for example:  /mnt/tank/matchday:/data
+      # That folder must be writable by user id 1000 (the "node" user inside the container).
+      - matchday-data:/data
+    restart: unless-stopped
+
+volumes:
+  matchday-data:

@@ -1,27 +1,74 @@
 # Football Matchday
 
-A football-themed property trading board game for two to six players. Buy stadiums and players, collect rent, build stands and trophies, and bankrupt your rivals.
+A football-themed property trading board game for two to six players, played in the browser. Buy stadiums and players, collect rent, build stands and trophies, and bankrupt your rivals.
 
 Everything on the board is original: the stadiums are invented, and so are the players.
 
-## What is here
+## Run it
+
+With Docker:
+
+```
+docker compose up --build
+```
+
+Then open http://localhost:3000, enter a name and press **Create a match**. Send the link, or the five-letter code, to the people you want to play with. Each person opens it, enters a name, and takes a seat.
+
+Without Docker (Node 18 or newer):
+
+```
+npm ci
+npm start
+```
+
+Alone, press **Add practice seat** in the lobby to control extra players yourself.
+
+## Saved matches
+
+The server keeps every match in one file, `rooms.json`, inside its data folder (`/data` in the container, `./data` when run directly). It is written a moment after each move and when the server stops, so a restart picks matches up where they were. Players get their seat back because the browser remembers a private token. Matches nobody has touched for 30 days are removed at start-up.
+
+Settings, all optional environment variables:
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `PORT` | `3000` | Port to listen on |
+| `DATA_DIR` | `/data` in Docker | Where `rooms.json` is saved |
+| `MAX_ROOMS` | `200` | Most matches kept at once |
+| `ROOM_TTL_DAYS` | `30` | Days of inactivity before a saved match is deleted |
+
+## Putting it on TrueNAS
+
+The image has no secrets and one writable folder. In outline:
+
+1. Build the image from the `Dockerfile` (or build it on another machine and push it to a registry TrueNAS can reach).
+2. Run it as a container or compose app with port 3000 published.
+3. Mount a dataset at `/data` so matches survive updates. The container runs as user id 1000 (`node`), so that dataset must be writable by it.
+4. If you put it behind a reverse proxy, the proxy must pass WebSocket connections on `/ws`.
+
+There are no accounts. Anyone who has a match's code can sit at the table, so keep it on your own network or behind a VPN or a proxy that asks for a login if it is reachable from the internet. A match that has already started can only be watched, not joined.
+
+## How it fits together
 
 | Path | What it is |
 | --- | --- |
-| `prototype/football-matchday.html` | The playable prototype. A single page that was built and published as a Claude artifact, where it keeps its match in a shared database. Outside Claude it loads but cannot start a match. |
-| `src/rules.js` | The game rules as plain functions on a state object. No browser or network code. Generated from the prototype by `npm run sync`. |
-| `test/rules.test.js` | Rules tests and random full-game simulations that check the state stays consistent. |
-| `scripts/sync-rules.js` | Copies the rules block out of the prototype into `src/rules.js`. |
+| `src/rules.js` | The game rules as plain functions on a state object. No browser or network code. Runs on the server and in the page. **This is the source of truth for the rules.** |
+| `server/index.js` | HTTP and WebSocket server. Holds the rooms, saves them, and sends each player their own view of the state. |
+| `server/game.js` | Checks that a player is allowed to make a move, then applies it with `src/rules.js`. |
+| `web/index.html` | The page. Draws the board and sends moves to the server. It never decides what is legal. |
+| `test/` | Rules tests, random full-game simulations, and tests that drive the real server over WebSockets. |
+| `prototype/football-matchday.html` | The first single-page version, built as a Claude artifact with its own copy of the rules. Kept for reference. It no longer receives rule changes. |
 
-## Running the tests
+The server is the authority: the page sends a request such as `roll` or `bid`, the server checks who sent it and whether it is legal, and everyone receives the new state. Other players' private tokens and the order of the card decks never leave the server.
 
-Needs Node 18 or newer. There are no dependencies.
+## Tests
 
 ```
 npm test
 ```
 
-## How the rules work
+No setup needed beyond `npm ci`.
+
+## The rules
 
 - Everyone starts with £1,500. Roll two dice and move. Doubles roll again, and a third double sends you to the Dugout.
 - Land on an unowned ground and you may buy it. If you decline, or cannot pay, it is auctioned (£10, £50 or £100 bids, or drop out).
@@ -35,14 +82,3 @@ npm test
 - Out of cash means selling stands, then mortgaging, then bankruptcy. Assets go to the creditor, or to auction if the bank was owed.
 
 Not included yet: auctions when two players want the last stands, and selling Get-out cards.
-
-## Plan for the online version
-
-The aim is a server that lets people play from different places. The prototype leans on Claude's shared database for the one thing a server must do itself: decide whose move is valid, and tell everyone what happened.
-
-1. **Server owns the state.** Run `src/rules.js` on the server. Clients send an action (`roll`, `buy`, `bid`, `offer` and so on) and receive the new state. The rules functions already work this way: take a state, apply one action, return the changed state.
-2. **Identity.** Decide how people join: an invite link to a room is the simplest, accounts can come later.
-3. **Realtime.** WebSockets so every player sees moves as they happen.
-4. **Hidden information.** Nothing is hidden in this game apart from the card deck order, which the server keeps.
-5. **Persistence.** Save each room's state so a match survives a restart.
-6. **Client.** Reuse the prototype's board and panels, replacing its database calls with the socket.

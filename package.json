@@ -4,8 +4,13 @@
   "description": "Football Matchday: a football-themed property trading board game.",
   "private": true,
   "scripts": {
-    "sync": "node scripts/sync-rules.js",
-    "test": "node scripts/sync-rules.js && node --test"
+    "test": "node --test",
+    "start": "node server/index.js"
   },
-  "engines": { "node": ">=18" }
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "ws": "8.22.1"
+  }
 }
