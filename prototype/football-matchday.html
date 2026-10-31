@@ -1,0 +1,1066 @@
+<title>Football Matchday</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: the board (a 11x11 grid ring around a football pitch) on the left, a side panel on the right; they stack on narrow screens. The pitch in the middle carries the dice and the action buttons. */
+:root{
+  --bg:#E4EBE8; --surface:#FFFFFF; --surface2:#F0F5F2; --ink:#0F231A; --mute:#566B60; --line:#C5D3CC;
+  --pitch:#2A7A45; --pitch2:#318C4F; --pitchline:rgba(255,255,255,.8); --sqbg:#FBFDFB;
+  --card:#F4C20D; --on-card:#1B1500; --red:#D7263D; --ok:#1E9E55; --shadow:0 1px 0 rgba(15,35,26,.06);
+  --f-display:'Big Shoulders Display','Arial Narrow',Impact,sans-serif;
+  --f-body:'Hanken Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --f-mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0C1411; --surface:#14201A; --surface2:#1A2A23; --ink:#E7F0EA; --mute:#92A89C; --line:#2A3B32;
+  --pitch:#1C5C36; --pitch2:#206A3F; --pitchline:rgba(255,255,255,.55); --sqbg:#17231D; --shadow:none; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0C1411; --surface:#14201A; --surface2:#1A2A23; --ink:#E7F0EA; --mute:#92A89C; --line:#2A3B32;
+  --pitch:#1C5C36; --pitch2:#206A3F; --pitchline:rgba(255,255,255,.55); --sqbg:#17231D; --shadow:none; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:18px 40px}
+.page{max-width:1240px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+header.top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{font-family:var(--f-display);font-weight:900;font-size:clamp(34px,6vw,54px);line-height:.9;letter-spacing:.01em;text-transform:uppercase;margin:0;text-wrap:balance}
+h1 span{color:var(--pitch2)}
+.status{font-family:var(--f-mono);font-size:12px;color:var(--mute);text-align:right}
+.status b{color:var(--ink)}
+#note{min-height:18px;font-size:13px;color:var(--red)}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:20px;align-items:start}
+@media (max-width:1000px){.layout{grid-template-columns:minmax(0,1fr)}}
+
+/* ---------- board ---------- */
+.board-wrap{container-type:inline-size;width:100%;max-width:840px;margin:0 auto}
+.board{display:grid;grid-template-columns:1.55fr repeat(9,1fr) 1.55fr;grid-template-rows:1.55fr repeat(9,1fr) 1.55fr;
+  aspect-ratio:1;background:var(--ink);gap:1px;border:2px solid var(--ink);position:relative}
+.sq{appearance:none;border:0;padding:0;margin:0;font:inherit;color:inherit;text-align:center;position:relative;display:flex;
+  background:var(--sqbg);overflow:hidden;min-width:0;min-height:0;cursor:pointer}
+.sq:focus-visible{outline:3px solid var(--card);outline-offset:-3px;z-index:3}
+.sq.sel{box-shadow:inset 0 0 0 .5cqw var(--card);z-index:2}
+.s-b{flex-direction:column}.s-t{flex-direction:column-reverse}.s-l{flex-direction:row-reverse}.s-r{flex-direction:row}
+.band{flex:0 0 25%;display:flex;gap:.3cqw;align-items:center;justify-content:center;flex-wrap:wrap;padding:.2cqw}
+.stand{display:block;width:1.5cqw;height:1.5cqw;background:#fff;border:1px solid rgba(0,0,0,.45);border-radius:1px}
+.k-pl .stand{border-radius:50%}
+.arena{display:block;width:4cqw;height:1.8cqw;background:var(--red);border:1px solid #fff;border-radius:2px}
+.k-pl .arena{width:2.2cqw;height:2.2cqw;border-radius:50%;background:var(--card);border-color:#000}
+.txt{position:relative;flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:.7cqw .3cqw 0;gap:.2cqw}
+.nm{font-weight:700;font-size:1.28cqw;line-height:1.1;text-wrap:balance;overflow-wrap:anywhere}
+.k-pl .nm{font-style:italic}
+.rl{font-size:1cqw;line-height:1;color:var(--mute);text-transform:uppercase;letter-spacing:.04em}
+.pr{font-family:var(--f-mono);font-size:1.2cqw;font-weight:500;color:var(--mute)}
+.sh{display:none;font-family:var(--f-display);font-weight:800;font-size:2.4cqw;letter-spacing:.03em}
+.oc{position:absolute;top:.5cqw;right:.5cqw;width:1.7cqw;height:1.7cqw;border-radius:50%;border:2px solid var(--sqbg);box-shadow:0 0 0 1px var(--ink)}
+.sq.mort .txt{opacity:.45;background:repeating-linear-gradient(135deg,transparent 0 .8cqw,rgba(128,128,128,.28) .8cqw 1.2cqw)}
+.toks{position:absolute;left:0;right:0;bottom:.4cqw;display:flex;justify-content:center;flex-wrap:wrap;gap:.3cqw;pointer-events:none}
+.tok{width:3cqw;height:3cqw;border-radius:50%;border:.3cqw solid #fff;display:grid;place-items:center;color:#fff;font-family:var(--f-mono);font-weight:700;font-size:1.6cqw;box-shadow:0 1px 3px rgba(0,0,0,.5)}
+.sq.c .nm{font-family:var(--f-display);font-weight:900;font-size:2.8cqw;text-transform:uppercase;letter-spacing:.02em;line-height:.95;font-style:normal}
+.sq.c .sub{font-size:1.2cqw;color:var(--mute);line-height:1.1}
+.sq.c .txt{justify-content:center;padding-top:0}
+.sq.t-gojail .nm{color:var(--red)}
+.sq.t-go .nm{color:var(--ok)}
+.sq.t-chance .nm,.sq.t-chest .nm{text-transform:uppercase;letter-spacing:.02em}
+.sq.t-chance .txt::before,.sq.t-chest .txt::before{content:"";width:2.6cqw;height:3.4cqw;border-radius:2px;margin-top:.4cqw;background:var(--card);border:1px solid rgba(0,0,0,.4);transform:rotate(-8deg)}
+.sq.t-chest .txt::before{background:var(--red);transform:rotate(8deg)}
+.sq.t-tax .nm{text-transform:uppercase}
+@container (max-width:560px){
+  .nm,.rl{display:none}.sq.c .nm{display:block;font-size:3.6cqw}.sq.c .sub{display:none}
+  .sh{display:block}.sq.t-prop .sh{display:none}.pr{font-size:2.3cqw}
+  .stand{width:2cqw;height:2cqw}.tok{width:4.6cqw;height:4.6cqw;font-size:2.6cqw}.oc{width:2.6cqw;height:2.6cqw}
+  .sq.t-chance .txt::before,.sq.t-chest .txt::before{display:none}
+}
+
+/* pitch in the middle */
+.pitch{grid-area:2/2/11/11;position:relative;overflow:hidden;
+  background:repeating-linear-gradient(90deg,var(--pitch) 0 11.11%,var(--pitch2) 11.11% 22.22%);display:grid;place-items:center}
+.pitch::before{content:"";position:absolute;inset:4%;border:2px solid var(--pitchline);pointer-events:none}
+.pitch::after{content:"";position:absolute;left:50%;top:50%;width:26%;aspect-ratio:1;transform:translate(-50%,-50%);border:2px solid var(--pitchline);border-radius:50%;pointer-events:none}
+.pitch .half{position:absolute;left:4%;right:4%;top:50%;height:2px;background:var(--pitchline);pointer-events:none}
+.centre{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:1.6cqw;text-align:center;color:#fff;width:84%;max-height:92%}
+.logo{font-family:var(--f-display);font-weight:900;text-transform:uppercase;font-size:clamp(18px,5.4cqw,46px);line-height:.85;letter-spacing:.02em;text-shadow:0 2px 0 rgba(0,0,0,.25)}
+.logo b{display:block;color:var(--card);font-weight:900}
+.dice{display:flex;gap:1.6cqw}
+.die{width:7.4cqw;aspect-ratio:1;background:#fff;border-radius:18%;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:1.1cqw;gap:.1cqw;box-shadow:0 2px 0 rgba(0,0,0,.35)}
+.die i{border-radius:50%;margin:12%}
+.die i.on{background:#16231B}
+.die.pop{animation:pop .45s cubic-bezier(.2,.9,.3,1.3)}
+@keyframes pop{0%{transform:rotate(-40deg) scale(.5);opacity:.2}100%{transform:none;opacity:1}}
+.say{background:rgba(8,28,17,.72);padding:.9cqw 1.6cqw;border-radius:6px;font-size:clamp(11px,1.65cqw,15px);line-height:1.3;max-width:100%;text-wrap:pretty}
+.say.dim{opacity:.7}
+.acts{display:flex;gap:1cqw;flex-wrap:wrap;justify-content:center}
+.btn{appearance:none;border:0;cursor:pointer;font-family:var(--f-display);font-weight:800;text-transform:uppercase;letter-spacing:.04em;
+  font-size:clamp(13px,2.6cqw,22px);padding:.8cqw 2.4cqw;background:var(--card);color:var(--on-card);border-radius:4px;box-shadow:0 2px 0 rgba(0,0,0,.4)}
+.btn:hover:not(:disabled){filter:brightness(1.06)}
+.btn:active:not(:disabled){transform:translateY(1px);box-shadow:0 1px 0 rgba(0,0,0,.4)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible,.mini:focus-visible,.ghost:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.btn.alt{background:rgba(255,255,255,.16);color:#fff;box-shadow:inset 0 0 0 2px rgba(255,255,255,.7)}
+.lobby{display:flex;flex-direction:column;gap:1.2cqw;align-items:stretch;width:100%}
+.seat{display:flex;align-items:center;gap:1.2cqw;background:rgba(8,28,17,.72);padding:.7cqw 1.4cqw;border-radius:6px;font-size:clamp(11px,1.8cqw,15px);text-align:left}
+.seat .tok{flex:none;width:clamp(18px,3.4cqw,28px);height:clamp(18px,3.4cqw,28px);font-size:clamp(10px,1.8cqw,14px)}
+.seat span.grow{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.seat button{appearance:none;border:0;background:transparent;color:#fff;text-decoration:underline;cursor:pointer;font:inherit;padding:0 4px}
+.winner{font-family:var(--f-display);font-weight:900;text-transform:uppercase;font-size:clamp(20px,6cqw,52px);line-height:.95;color:var(--card)}
+@container (max-width:560px){.centre{gap:1.2cqw}.logo{font-size:6.4cqw}.die{width:9cqw}.say{font-size:2.5cqw}.btn{font-size:3.4cqw;padding:1cqw 3cqw}}
+
+/* ---------- side panel ---------- */
+aside{display:flex;flex-direction:column;gap:12px;min-width:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 14px;box-shadow:var(--shadow);min-width:0}
+.panel h2{font-family:var(--f-display);font-weight:800;text-transform:uppercase;letter-spacing:.06em;font-size:16px;margin:0 0 8px;color:var(--mute)}
+details.panel summary{cursor:pointer;font-family:var(--f-display);font-weight:800;text-transform:uppercase;letter-spacing:.06em;font-size:16px;color:var(--mute)}
+details.panel[open] summary{margin-bottom:8px}
+.prow{display:flex;align-items:center;gap:8px;padding:6px 6px;border-radius:4px;min-width:0}
+.prow.turn{background:var(--surface2);box-shadow:inset 3px 0 0 var(--card)}
+.prow.out{opacity:.45;text-decoration:line-through}
+.pdot{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;color:#fff;font-family:var(--f-mono);font-weight:700;font-size:11px;border:2px solid var(--surface);box-shadow:0 0 0 1px var(--ink)}
+.pname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.pname small{font-weight:500;color:var(--mute)}
+.cash{font-family:var(--f-mono);font-weight:700;font-variant-numeric:tabular-nums}
+.tag{font-size:11px;font-family:var(--f-mono);color:var(--on-card);background:var(--card);padding:1px 5px;border-radius:3px}
+.tag.red{background:var(--red);color:#fff}
+.info h3{margin:0;font-family:var(--f-display);font-weight:900;font-size:24px;line-height:1;text-transform:uppercase}
+.chip{display:inline-block;width:12px;height:12px;border-radius:2px;border:1px solid rgba(0,0,0,.4);vertical-align:-1px;margin-right:6px}
+table.rt{width:100%;border-collapse:collapse;margin-top:8px;font-size:13px}
+table.rt td{padding:3px 0;border-bottom:1px dashed var(--line)}
+table.rt td:last-child{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--mute)}
+.hold{display:flex;flex-direction:column;gap:2px}
+.hrow{display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--line);min-width:0;flex-wrap:wrap}
+.hrow .hn{flex:1;min-width:100px;font-weight:600;overflow:hidden;text-overflow:ellipsis}
+.hrow .hs{font-size:12px;color:var(--mute);font-family:var(--f-mono)}
+.mini{appearance:none;border:1px solid var(--line);background:var(--surface2);color:var(--ink);font:600 12px var(--f-body);padding:3px 7px;border-radius:4px;cursor:pointer}
+.mini:hover:not(:disabled){border-color:var(--ink)}
+.mini:disabled{opacity:.4;cursor:not-allowed}
+.mini.on{background:var(--card);color:var(--on-card);border-color:var(--ink)}
+.offer{appearance:none;width:100%;border:0;cursor:pointer;text-align:left;font:700 15px var(--f-body);padding:10px 14px;border-radius:6px;background:var(--card);color:var(--on-card);box-shadow:0 2px 0 rgba(0,0,0,.25)}
+.offer:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+.ghost{appearance:none;border:1px solid var(--line);background:transparent;color:var(--ink);font:600 13px var(--f-body);padding:6px 12px;border-radius:4px;cursor:pointer}
+.ghost:disabled{opacity:.45;cursor:not-allowed}
+.logl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px;font-size:13px}
+.logl li{padding-left:10px;border-left:2px solid var(--line)}
+.logl li:first-child{border-left-color:var(--card);font-weight:600}
+.rules{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:5px;font-size:13px}
+@media (prefers-reduced-motion:reduce){.die.pop{animation:none}}
+</style>
+
+<div class="page">
+  <header class="top">
+    <h1>Football <span>Matchday</span></h1>
+    <div class="status" id="status">Loading the table&hellip;</div>
+  </header>
+  <div id="note" role="status" aria-live="polite"></div>
+  <div id="offerbar" role="status" aria-live="polite"></div>
+  <div class="layout">
+    <div class="board-wrap"><div class="board" id="board"></div></div>
+    <aside id="side"></aside>
+  </div>
+</div>
+
+<script>
+//#LOGIC-START
+const RV=2;
+const G=[
+  {k:'brown',c:'#7A4B2F',cost:50},{k:'sky',c:'#6FC3E6',cost:50},{k:'pink',c:'#D8609F',cost:100},{k:'orange',c:'#F08A24',cost:100},
+  {k:'red',c:'#D7263D',cost:150},{k:'yellow',c:'#F2C200',cost:150},{k:'green',c:'#1E9E55',cost:200},{k:'navy',c:'#1F3F8F',cost:200}];
+const GN=['Lower Park League','Harbour League','Ironworks League','Canal League','Cathedral League','Crown League','Highland League','Premier League'];
+const P=(n,g,p,r)=>({t:'prop',k:'std',n,g,p,r});
+const PL=(n,role,g,p,r)=>({t:'prop',k:'pl',n,role,g,p,r});
+const SQ=[
+  {t:'go',n:'Kick-off',s:'GO',u:'Collect £200'},
+  P('Brookfield Park',0,60,[2,10,30,90,160,250]),
+  {t:'chest',n:'Fan Club',s:'FAN'},
+  PL('Tomás Valderrama','Goalkeeper',0,60,[4,20,60,180,320,450]),
+  {t:'tax',n:'Agent Fees',s:'TAX',a:200},
+  {t:'st',n:'Northern Coaches',p:200,s:'BUS'},
+  P('Harbour Road',1,100,[6,30,90,270,400,550]),
+  {t:'chance',n:'Transfer Window',s:'XFER'},
+  PL('Kai Lindqvist','Defender',1,100,[6,30,90,270,400,550]),
+  PL('Emeka Obiora','Full-back',1,120,[8,40,100,300,450,600]),
+  {t:'jail',n:'The Dugout',s:'DUG',u:'Suspended / just watching'},
+  P('Ironworks Field',2,140,[10,50,150,450,625,750]),
+  {t:'ut',n:'Floodlight Co.',p:150,s:'LGT'},
+  PL('Mateo Salcedo','Winger',2,140,[10,50,150,450,625,750]),
+  PL('Hugo Marchetti','Captain',2,160,[12,60,180,500,700,900]),
+  {t:'st',n:'Midland Coaches',p:200,s:'BUS'},
+  P('Canal Street',3,180,[14,70,200,550,750,950]),
+  {t:'chest',n:'Fan Club',s:'FAN'},
+  PL('Jonas Eklund','Midfielder',3,180,[14,70,200,550,750,950]),
+  P('Wharf End',3,200,[16,80,220,600,800,1000]),
+  {t:'park',n:'Half-Time',s:'HT',u:'£20 into the pot'},
+  P('Cathedral Quarter',4,220,[18,90,250,700,875,1050]),
+  {t:'chance',n:'Transfer Window',s:'XFER'},
+  PL('Ravi Nandakumar','Playmaker',4,220,[18,90,250,700,875,1050]),
+  PL('Yusuf Demir','Striker',4,240,[20,100,300,750,925,1100]),
+  {t:'st',n:'Southern Coaches',p:200,s:'BUS'},
+  P('Crown Terrace',5,260,[22,110,330,800,975,1150]),
+  PL('Luca Ferrandi','Striker',5,260,[22,110,330,800,975,1150]),
+  {t:'ut',n:'Scoreboard Co.',p:150,s:'SCR'},
+  P('Regent Lawn',5,280,[24,120,360,850,1025,1200]),
+  {t:'gojail',n:'Sent Off!',s:'OFF',u:'Straight to the Dugout'},
+  P('Highland Road',6,300,[26,130,390,900,1100,1275]),
+  PL('Idris Haddad','Centre-back',6,300,[26,130,390,900,1100,1275]),
+  {t:'chest',n:'Fan Club',s:'FAN'},
+  P('Castle Hill',6,320,[28,150,450,1000,1200,1400]),
+  {t:'st',n:'Eastern Coaches',p:200,s:'BUS'},
+  {t:'chance',n:'Transfer Window',s:'XFER'},
+  PL('Alessandro Vidal','Forward',7,350,[35,175,500,1100,1300,1500]),
+  {t:'tax',n:'Super Tax',s:'TAX',a:100},
+  P('National Arena',7,400,[50,200,600,1400,1700,2000])
+];
+const CARDS={
+  chance:[
+    {x:'Advance to Kick-off. Collect £200.',a:'goto',v:0},
+    {x:'Advance to the nearest coach line. If it is unowned you may buy it. If owned, pay the owner double rent.',a:'near',v:'st'},
+    {x:'Advance to the nearest coach line. If it is unowned you may buy it. If owned, pay the owner double rent.',a:'near',v:'st'},
+    {x:'Advance to the nearest floodlight or scoreboard company. If owned, roll the dice and pay the owner ten times the roll.',a:'near',v:'ut'},
+    {x:'Advance to National Arena.',a:'goto',v:39},
+    {x:'Advance to Cathedral Quarter. If you pass Kick-off, collect £200.',a:'goto',v:21},
+    {x:'Advance to Ironworks Field. If you pass Kick-off, collect £200.',a:'goto',v:11},
+    {x:'Take the Midland coach. If you pass Kick-off, collect £200.',a:'goto',v:15},
+    {x:'Transfer fee income. Collect £50.',a:'cash',v:50},
+    {x:'Get out of the Dugout free. Keep this card until needed or sell it.',a:'jfree'},
+    {x:'A heavy tackle. Go back three spaces.',a:'back'},
+    {x:'Sent off! Go directly to the Dugout. Do not pass Kick-off. Do not collect £200.',a:'jail'},
+    {x:'Pitch repairs. Pay £25 for each stand or trophy and £100 for each Grand Stadium or Legend.',a:'repairs',v:25,w:100},
+    {x:'Pay a £15 fine for a late team bus.',a:'cash',v:-15},
+    {x:'You have been elected club chairman. Pay each player £50.',a:'payeach',v:50},
+    {x:'Your building loan matures. Collect £150.',a:'cash',v:150}],
+  chest:[
+    {x:'Advance to Kick-off. Collect £200.',a:'goto',v:0},
+    {x:'Bank error in your favour. Collect £200.',a:'cash',v:200},
+    {x:"Doctor's fees. Pay £50.",a:'cash',v:-50},
+    {x:'From the sale of old boots you get £50.',a:'cash',v:50},
+    {x:'Get out of the Dugout free. Keep this card until needed or sell it.',a:'jfree'},
+    {x:'Sent off! Go directly to the Dugout. Do not pass Kick-off. Do not collect £200.',a:'jail'},
+    {x:'Holiday fund matures. Receive £100.',a:'cash',v:100},
+    {x:'Income tax refund. Collect £20.',a:'cash',v:20},
+    {x:'It is your birthday. Collect £10 from each player.',a:'collecteach',v:10},
+    {x:'Life insurance matures. Collect £100.',a:'cash',v:100},
+    {x:'Hospital fees. Pay £100.',a:'cash',v:-100},
+    {x:'School fees. Pay £50.',a:'cash',v:-50},
+    {x:'Receive a £25 consultancy fee.',a:'cash',v:25},
+    {x:'Street repairs. Pay £40 for each stand or trophy and £115 for each Grand Stadium or Legend.',a:'repairs',v:40,w:115},
+    {x:'You have won second prize in a fan beauty contest. Collect £10.',a:'cash',v:10},
+    {x:'You inherit £100.',a:'cash',v:100}]
+};
+const fmtMoney=n=>'£'+Number(n).toLocaleString('en-GB');
+const isPl=q=>q.k==='pl';
+const topName=q=>isPl(q)?'Legend':'Grand Stadium';
+const unitName=(q,n)=>isPl(q)?(n===1?'trophy':'trophies'):(n===1?'stand':'stands');
+function upLabel(q,n){return n===0?'':n===5?topName(q):n+' '+unitName(q,n)}
+function upBuilt(q,n){return n===5?(isPl(q)?'Legend status':'a Grand Stadium'):(isPl(q)?'a trophy':'a stand')}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function say(s,t){s.log.unshift(t);if(s.log.length>40)s.log.length=40}
+function owned(s,pi){return Object.keys(s.own).filter(k=>s.own[k]===pi).map(Number).sort((a,b)=>a-b)}
+function groupSq(g){const r=[];SQ.forEach((q,i)=>{if(q.t==='prop'&&q.g===g)r.push(i)});return r}
+function hasSet(s,pi,g){return groupSq(g).every(i=>s.own[i]===pi)}
+function countType(s,pi,t){return owned(s,pi).filter(i=>SQ[i].t===t).length}
+function aliveCount(s){return s.players.filter(p=>!p.bankrupt).length}
+function supply(s){let sm=0,bg=0;for(const k in s.stands){const n=s.stands[k];if(n===5)bg++;else sm+=n}return{small:32-sm,big:12-bg}}
+function rentFor(s,i,dsum){
+  const q=SQ[i],o=s.own[i];
+  if(o===undefined||s.mort[i])return 0;
+  if(q.t==='prop'){
+    const n=s.stands[i]||0;
+    if(n>0)return q.r[n];
+    return hasSet(s,o,q.g)?q.r[0]*2:q.r[0];
+  }
+  if(q.t==='st')return 25*Math.pow(2,countType(s,o,'st')-1);
+  if(q.t==='ut')return dsum*(countType(s,o,'ut')>=2?10:4);
+  return 0;
+}
+/* building and mortgaging: allowed at any time, never during an auction */
+function canBuild(s,pi,i){
+  const q=SQ[i],p=s.players[pi];
+  if(s.stage==='auction'||!p||p.bankrupt||q.t!=='prop'||s.own[i]!==pi||!hasSet(s,pi,q.g))return false;
+  const grp=groupSq(q.g),n=s.stands[i]||0;
+  if(grp.some(j=>s.mort[j])||n>=5)return false;
+  if(!grp.every(j=>(s.stands[j]||0)>=n))return false;
+  const sup=supply(s);
+  if(n<4&&sup.small<1)return false;
+  if(n===4&&sup.big<1)return false;
+  return p.cash>=G[q.g].cost;
+}
+function canSell(s,pi,i){
+  const q=SQ[i],n=s.stands[i]||0;
+  if(s.stage==='auction'||q.t!=='prop'||s.own[i]!==pi||n<1)return false;
+  return groupSq(q.g).every(j=>(s.stands[j]||0)<=n);
+}
+function canMort(s,pi,i){
+  const q=SQ[i];
+  if(s.stage==='auction'||s.own[i]!==pi||s.mort[i])return false;
+  if(q.t==='prop'&&groupSq(q.g).some(j=>(s.stands[j]||0)>0))return false;
+  return true;
+}
+function unmortCost(i){return Math.ceil(SQ[i].p*0.55)}
+function mortFee(i){return Math.ceil(SQ[i].p*0.05)}
+function canUnmort(s,pi,i){return s.stage!=='auction'&&s.own[i]===pi&&!!s.mort[i]&&s.players[pi].cash>=unmortCost(i)}
+/* sells one level; a Grand Stadium with too few stands in the bank's supply is sold right down */
+function sellUnit(s,pi,i){
+  const q=SQ[i],n=s.stands[i]||0,c=G[q.g].cost;
+  if(n===5&&supply(s).small<4){delete s.stands[i];s.players[pi].cash+=5*c/2;return 5*c/2}
+  s.stands[i]=n-1;if(!s.stands[i])delete s.stands[i];
+  s.players[pi].cash+=c/2;return c/2;
+}
+function liquidate(s,pi,need){
+  const p=s.players[pi];
+  while(p.cash<need){
+    let best=-1,bn=0;
+    for(const i of owned(s,pi)){const n=s.stands[i]||0;if(n>bn){bn=n;best=i}}
+    if(best<0)break;
+    sellUnit(s,pi,best);
+  }
+  while(p.cash<need){
+    const i=owned(s,pi).find(j=>!s.mort[j]);
+    if(i===undefined)break;
+    s.mort[i]=1;p.cash+=SQ[i].p/2;
+  }
+}
+function bankrupt(s,pi,cr){
+  const p=s.players[pi],hold=owned(s,pi);
+  let fee=0;
+  if(cr!=null){
+    const c=s.players[cr];
+    c.cash+=p.cash;
+    hold.forEach(i=>{s.own[i]=cr;delete s.stands[i];if(s.mort[i])fee+=mortFee(i)});
+    p.jf.forEach(d=>c.jf.push(d));
+  }else{
+    hold.forEach(i=>{delete s.own[i];delete s.mort[i];delete s.stands[i]});
+    s.aq=(s.aq||[]).concat(hold);
+    p.jf.forEach(d=>s.deck[d].push(CARDS[d].findIndex(c=>c.a==='jfree')));
+  }
+  p.jf=[];p.cash=0;p.bankrupt=true;p.inJail=false;
+  say(s,cr!=null?`{${pi}} is out of the game. Everything goes to {${cr}}.`:`{${pi}} is out of the game. Their grounds go to auction.`);
+  if(cr!=null&&fee>0){say(s,`{${cr}} pays a ${fmtMoney(fee)} fee on the mortgaged grounds.`);charge(s,cr,fee,null)}
+  if(s.phase==='over')return;
+  const live=s.players.map((x,i)=>x.bankrupt?-1:i).filter(i=>i>=0);
+  if(live.length===1){s.phase='over';s.winner=live[0];say(s,`{${live[0]}} wins the league!`)}
+}
+function charge(s,pi,amt,cr){
+  const p=s.players[pi];
+  if(amt<=0)return true;
+  if(p.cash<amt){const before=p.cash;liquidate(s,pi,amt);if(p.cash>before)say(s,`{${pi}} sold stands and mortgaged grounds to cover the bill.`)}
+  if(p.cash>=amt){p.cash-=amt;if(cr!=null)s.players[cr].cash+=amt;return true}
+  bankrupt(s,pi,cr);return false;
+}
+function sendToJail(s){const p=s.players[s.turn];p.pos=10;p.inJail=true;p.jt=0;s.dbl=false;s.buy=null;s.stage='end'}
+function moveTo(s,pos){
+  const p=s.players[s.turn];
+  if(pos<p.pos){p.cash+=200;say(s,`{${s.turn}} passes Kick-off and collects £200.`)}
+  land(s,pos);
+}
+function moveBy(s,steps){
+  const p=s.players[s.turn],np=(p.pos+steps)%40;
+  if(np<p.pos){p.cash+=200;say(s,`{${s.turn}} passes Kick-off and collects £200.`)}
+  land(s,np);
+}
+function halfTime(s,pi){
+  if(aliveCount(s)<=2){say(s,`{${pi}} stops at Half-Time. With two players left, the break is free.`);return}
+  const p=s.players[pi];
+  if((s.pot||0)>0&&s.potBy!==pi){p.cash+=s.pot;say(s,`{${pi}} collects ${fmtMoney(s.pot)} from the Half-Time pot.`);s.pot=0;s.potBy=null}
+  if(charge(s,pi,20,null)){s.pot=(s.pot||0)+20;s.potBy=pi;say(s,`{${pi}} pays £20 into the Half-Time pot.`)}
+}
+function drawCard(s,deck){
+  const pi=s.turn,p=s.players[pi],q=s.deck[deck];
+  const idx=q.shift(),c=CARDS[deck][idx];
+  if(c.a!=='jfree')q.push(idx);
+  say(s,`{${pi}} draws: “${c.x}”`);
+  switch(c.a){
+    case 'goto':moveTo(s,c.v);break;
+    case 'near':{
+      let np=p.pos;do{np=(np+1)%40}while(SQ[np].t!==c.v);
+      if(np<p.pos){p.cash+=200;say(s,`{${pi}} passes Kick-off and collects £200.`)}
+      if(c.v==='ut'&&s.own[np]!==undefined&&s.own[np]!==pi&&!s.mort[np])s.dice=[1+Math.floor(Math.random()*6),1+Math.floor(Math.random()*6)];
+      land(s,np,{near:c.v});
+      break;
+    }
+    case 'cash':if(c.v>=0)p.cash+=c.v;else charge(s,pi,-c.v,null);break;
+    case 'back':land(s,(p.pos+37)%40);break;
+    case 'jfree':p.jf.push(deck);break;
+    case 'jail':sendToJail(s);break;
+    case 'repairs':{
+      let small=0,big=0;
+      owned(s,pi).forEach(i=>{const n=s.stands[i]||0;if(n===5)big++;else small+=n});
+      const amt=small*c.v+big*c.w;
+      if(amt>0){say(s,`{${pi}} pays ${fmtMoney(amt)} for repairs.`);charge(s,pi,amt,null)}
+      break;
+    }
+    case 'payeach':
+      for(let j=0;j<s.players.length;j++){if(j===pi||s.players[j].bankrupt)continue;if(!charge(s,pi,c.v,j))break}
+      break;
+    case 'collecteach':
+      for(let j=0;j<s.players.length;j++){if(j===pi||s.players[j].bankrupt)continue;charge(s,j,c.v,pi)}
+      break;
+  }
+}
+function land(s,pos,opts){
+  const pi=s.turn,p=s.players[pi],q=SQ[pos];
+  p.pos=pos;
+  if(q.t==='prop'||q.t==='st'||q.t==='ut'){
+    const o=s.own[pos];
+    if(o===undefined){
+      if(p.cash>=q.p){s.stage='buy';s.buy=pos;say(s,`{${pi}} lands on ${q.n}, for sale at ${fmtMoney(q.p)}.`)}
+      else{say(s,`{${pi}} lands on ${q.n} but can't afford it.`);startAuction(s,pos)}
+    }else if(o===pi){say(s,`{${pi}} is at home on ${q.n}.`)}
+    else if(s.mort[pos]){say(s,`${q.n} is mortgaged, so {${pi}} pays no rent.`)}
+    else{
+      const dsum=s.dice[0]+s.dice[1];
+      let r=rentFor(s,pos,dsum);
+      if(opts&&opts.near==='st')r*=2;
+      if(opts&&opts.near==='ut')r=dsum*10;
+      say(s,`{${pi}} pays ${fmtMoney(r)} to {${o}} at ${q.n}.`);
+      charge(s,pi,r,o);
+    }
+  }else if(q.t==='tax'){say(s,`{${pi}} pays ${fmtMoney(q.a)} (${q.n}).`);charge(s,pi,q.a,null)}
+  else if(q.t==='gojail'){say(s,`{${pi}} is sent off!`);sendToJail(s)}
+  else if(q.t==='chance'||q.t==='chest')drawCard(s,q.t);
+  else if(q.t==='park')halfTime(s,pi);
+}
+function nextTurn(s){
+  if(s.phase!=='play')return;
+  const n=s.players.length;
+  do{s.turn=(s.turn+1)%n}while(s.players[s.turn].bankrupt);
+  s.stage='roll';s.dc=0;s.dbl=false;s.buy=null;
+  say(s,`{${s.turn}} is up.`);
+}
+function afterResolve(s){
+  if(s.phase!=='play')return;
+  const p=s.players[s.turn];
+  s.buy=null;
+  if(s.aq&&s.aq.length){startAuction(s,s.aq.shift());return}
+  if(p.bankrupt){nextTurn(s);return}
+  if(p.inJail){s.stage='end';return}
+  if(s.dbl){s.stage='roll';say(s,`Doubles: {${s.turn}} goes again.`)}else s.stage='end';
+}
+function doRoll(s){
+  if(s.phase!=='play'||s.stage!=='roll')return;
+  const pi=s.turn,p=s.players[pi];
+  const d1=1+Math.floor(Math.random()*6),d2=1+Math.floor(Math.random()*6),tot=d1+d2,dbl=d1===d2;
+  s.dice=[d1,d2];
+  if(p.inJail){
+    if(dbl){
+      p.inJail=false;p.jt=0;s.dbl=false;
+      say(s,`{${pi}} rolled ${d1}+${d2}, doubles, and leaves the Dugout.`);
+      moveBy(s,tot);
+    }else{
+      p.jt=(p.jt||0)+1;
+      if(p.jt>=3){
+        say(s,`{${pi}} rolled ${d1}+${d2}. Three tries are up: pays £50 and moves.`);
+        p.inJail=false;p.jt=0;s.dbl=false;
+        if(charge(s,pi,50,null))moveBy(s,tot);
+      }else{
+        say(s,`{${pi}} rolled ${d1}+${d2} and stays suspended.`);
+        s.stage='end';return;
+      }
+    }
+  }else{
+    s.dc=(s.dc||0)+(dbl?1:0);
+    if(dbl&&s.dc>=3){say(s,`{${pi}} rolled a third double and is sent off!`);sendToJail(s);afterResolve(s);return}
+    s.dbl=dbl;
+    say(s,`{${pi}} rolled ${d1}+${d2}${dbl?' (doubles)':''}.`);
+    moveBy(s,tot);
+  }
+  if(s.stage!=='buy'&&s.stage!=='auction')afterResolve(s);
+}
+function doBuy(s){
+  if(s.phase!=='play'||s.stage!=='buy')return;
+  const q=SQ[s.buy],p=s.players[s.turn];
+  if(p.cash<q.p)return;
+  p.cash-=q.p;s.own[s.buy]=s.turn;
+  say(s,`{${s.turn}} buys ${q.n} for ${fmtMoney(q.p)}.`);
+  afterResolve(s);
+}
+function doPass(s){
+  if(s.phase!=='play'||s.stage!=='buy')return;
+  say(s,`{${s.turn}} passes on ${SQ[s.buy].n}.`);
+  startAuction(s,s.buy);
+}
+
+/* ---- auctions: players bid in turn, in £10 / £50 / £100 steps, or drop out ---- */
+function startAuction(s,sq){
+  s.buy=null;
+  s.auc={sq,bid:0,high:null,active:s.players.map((p,i)=>p.bankrupt?-1:i).filter(i=>i>=0),cur:s.turn};
+  s.stage='auction';
+  say(s,`${SQ[sq].n} goes to auction.`);
+  aucNext(s);
+}
+function aucNext(s){
+  const a=s.auc,n=s.players.length;
+  for(let guard=0;guard<60;guard++){
+    if(a.active.length===0){endAuction(s,null);return}
+    if(a.active.length===1&&a.high!=null){endAuction(s,a.high);return}
+    let c=a.cur;
+    do{c=(c+1)%n}while(!a.active.includes(c));
+    if(c===a.high){endAuction(s,a.high);return}
+    a.cur=c;
+    if(s.players[c].cash<a.bid+10){a.active=a.active.filter(x=>x!==c);say(s,`{${c}} can't raise the bid and drops out.`);continue}
+    return;
+  }
+}
+function endAuction(s,w){
+  const a=s.auc,q=SQ[a.sq];
+  if(w!=null&&a.bid>0){s.players[w].cash-=a.bid;s.own[a.sq]=w;say(s,`{${w}} wins ${q.n} at auction for ${fmtMoney(a.bid)}.`)}
+  else say(s,`Nobody bids. ${q.n} stays unowned.`);
+  s.auc=null;
+  afterResolve(s);
+}
+function doBid(s,inc){
+  const a=s.auc;
+  if(s.phase!=='play'||s.stage!=='auction'||!a||![10,50,100].includes(inc))return;
+  const nb=a.bid+inc;
+  if(s.players[a.cur].cash<nb)return;
+  a.bid=nb;a.high=a.cur;
+  say(s,`{${a.cur}} bids ${fmtMoney(nb)}.`);
+  aucNext(s);
+}
+function doFold(s){
+  const a=s.auc;
+  if(s.phase!=='play'||s.stage!=='auction'||!a)return;
+  say(s,`{${a.cur}} drops out.`);
+  a.active=a.active.filter(x=>x!==a.cur);
+  aucNext(s);
+}
+
+/* ---- trades: one offer on the table at a time ---- */
+function tradable(s,pi,i){
+  if(s.own[i]!==pi)return false;
+  const q=SQ[i];
+  return !(q.t==='prop'&&groupSq(q.g).some(j=>(s.stands[j]||0)>0));
+}
+function tradeFees(s,t){
+  const f=l=>l.reduce((n,i)=>n+(s.mort[i]?mortFee(i):0),0);
+  return [f(t.rs),f(t.gs)]; /* [fee the proposer pays, fee the other player pays] */
+}
+function validTrade(s,t){
+  const a=s.players[t.from],b=s.players[t.to];
+  if(!a||!b||a.bankrupt||b.bankrupt||t.from===t.to)return false;
+  if(!Number.isInteger(t.gc)||!Number.isInteger(t.rc)||t.gc<0||t.rc<0)return false;
+  if(!t.gs.length&&!t.rs.length&&!t.gc&&!t.rc)return false;
+  if(!t.gs.every(i=>tradable(s,t.from,i))||!t.rs.every(i=>tradable(s,t.to,i)))return false;
+  const [fa,fb]=tradeFees(s,t);
+  return a.cash>=t.gc&&b.cash>=t.rc&&a.cash-t.gc+t.rc>=fa&&b.cash-t.rc+t.gc>=fb;
+}
+function doOffer(s,t){
+  if(s.phase!=='play'||s.trade||s.auc||!validTrade(s,t))return false;
+  s.trade={from:t.from,to:t.to,gs:t.gs.slice(),gc:t.gc,rs:t.rs.slice(),rc:t.rc};
+  say(s,`{${t.from}} offers {${t.to}} a trade.`);
+  return true;
+}
+function doAccept(s){
+  const t=s.trade;
+  if(!t||s.auc||s.phase!=='play')return false;
+  if(!validTrade(s,t)){say(s,'The trade no longer works and is called off.');s.trade=null;return true}
+  const [fa,fb]=tradeFees(s,t);
+  t.gs.forEach(i=>{s.own[i]=t.to});t.rs.forEach(i=>{s.own[i]=t.from});
+  s.players[t.from].cash+=t.rc-t.gc-fa;s.players[t.to].cash+=t.gc-t.rc-fb;
+  say(s,`{${t.from}} and {${t.to}} shake hands on a trade.`);
+  if(fa+fb>0)say(s,`Mortgage fees paid to the bank: ${fmtMoney(fa+fb)}.`);
+  s.trade=null;return true;
+}
+function doDropTrade(s,declined){
+  const t=s.trade;if(!t)return false;
+  say(s,declined?`{${t.to}} turns down the offer from {${t.from}}.`:`{${t.from}} withdraws the offer.`);
+  s.trade=null;return true;
+}
+
+function doEnd(s){if(s.phase==='play'&&s.stage==='end')nextTurn(s)}
+function doBail(s){
+  const p=s.players[s.turn];
+  if(s.stage!=='roll'||!p.inJail||p.cash<50)return;
+  p.cash-=50;p.inJail=false;p.jt=0;say(s,`{${s.turn}} pays £50 to leave the Dugout.`);
+}
+function doCard(s){
+  const p=s.players[s.turn];
+  if(s.stage!=='roll'||!p.inJail||!p.jf.length)return;
+  const d=p.jf.pop();
+  s.deck[d].push(CARDS[d].findIndex(c=>c.a==='jfree'));
+  p.inJail=false;p.jt=0;say(s,`{${s.turn}} uses a Get-out card.`);
+}
+function doBuild(s,pi,i){
+  if(s.phase!=='play'||!canBuild(s,pi,i))return false;
+  s.players[pi].cash-=G[SQ[i].g].cost;s.stands[i]=(s.stands[i]||0)+1;
+  say(s,`{${pi}} builds ${upBuilt(SQ[i],s.stands[i])} at ${SQ[i].n}.`);
+  return true;
+}
+function doSell(s,pi,i){
+  if(s.phase!=='play'||!canSell(s,pi,i))return false;
+  const wasTop=s.stands[i]===5&&supply(s).small<4;
+  sellUnit(s,pi,i);
+  say(s,wasTop?`{${pi}} sells everything at ${SQ[i].n} because the bank is short of stands.`:`{${pi}} sells ${isPl(SQ[i])?'a trophy':'a stand'} at ${SQ[i].n}.`);
+  return true;
+}
+function doMort(s,pi,i){
+  if(s.phase!=='play'||!canMort(s,pi,i))return false;
+  s.mort[i]=1;s.players[pi].cash+=SQ[i].p/2;say(s,`{${pi}} mortgages ${SQ[i].n}.`);return true;
+}
+function doUnmort(s,pi,i){
+  if(s.phase!=='play'||!canUnmort(s,pi,i))return false;
+  delete s.mort[i];s.players[pi].cash-=unmortCost(i);say(s,`{${pi}} lifts the mortgage on ${SQ[i].n}.`);return true;
+}
+function newLobby(uid){
+  return {rv:RV,v:0,phase:'lobby',host:uid,players:[{uid}],log:[],own:{},stands:{},mort:{},turn:0,stage:'roll',dice:[1,1],dc:0,dbl:false,buy:null,deck:{chance:[],chest:[]},winner:null,auc:null,trade:null,pot:0,potBy:null,aq:[]};
+}
+function startGame(s){
+  const idx=a=>[...Array(a.length).keys()];
+  s.deck={chance:shuffle(idx(CARDS.chance)),chest:shuffle(idx(CARDS.chest))};
+  s.own={};s.stands={};s.mort={};s.log=[];s.winner=null;s.auc=null;s.trade=null;s.pot=0;s.potBy=null;s.aq=[];
+  s.players.forEach(p=>{p.cash=1500;p.pos=0;p.inJail=false;p.jt=0;p.jf=[];p.bankrupt=false});
+  s.phase='play';s.turn=Math.floor(Math.random()*s.players.length);s.stage='roll';s.dc=0;s.dbl=false;s.buy=null;s.dice=[1,1];
+  say(s,`Whistle blown. {${s.turn}} kicks off.`);
+}
+//#LOGIC-END
+
+/* ================= UI ================= */
+const $=q=>document.querySelector(q);
+function h(tag,attrs,...kids){
+  const e=document.createElement(tag);
+  for(const k in (attrs||{})){
+    const v=attrs[k];
+    if(k==='class')e.className=v;
+    else if(k==='style')e.style.cssText=v;
+    else if(k.startsWith('on'))e.addEventListener(k.slice(2),v);
+    else if(v===true)e.setAttribute(k,'');
+    else if(v!==false&&v!=null)e.setAttribute(k,v);
+  }
+  for(const c of kids.flat(Infinity)){if(c==null||c===false)continue;e.append(c.nodeType?c:document.createTextNode(String(c)))}
+  return e;
+}
+const PCOL=['#E4572E','#2E86DE','#B8860B','#7B4BC4','#12A39A','#D6458F'];
+const PIPS={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
+
+let ref=null,state=null,myId=null,userNS=null,prof={},lastKey='',sel=null,ready=false,canWrite=true,lastDice='',confirmReset=false,noteTimer=0,queue=Promise.resolve(),mgr=null,sideDirty=false;
+const view=()=>state&&state.rv===RV?state:null;
+const legacy=()=>!!state&&state.rv!==RV;
+
+function note(t){const el=$('#note');el.textContent=t||'';clearTimeout(noteTimer);if(t)noteTimer=setTimeout(()=>{el.textContent=''},7000)}
+function coord(i){
+  if(i<=10)return[11-i,11];
+  if(i<=19)return[1,21-i];
+  if(i<=30)return[1+(i-20),1];
+  return[11,i-29];
+}
+function sideOf(i){if(i%10===0)return'c';if(i<10)return'b';if(i<20)return'l';if(i<30)return't';return'r'}
+function nm(s,i){
+  const p=s.players[i];if(!p)return'?';
+  if(p.hot)return p.hn||('Practice '+(i+1));
+  const e=prof[p.uid];return(e&&e.name)||('Player '+(i+1));
+}
+function fmt(s,t){return t.replace(/\{(\d)\}/g,(m,i)=>nm(s,+i))}
+function controls(s,i){
+  const p=s&&s.players[i];
+  return !!p&&!p.bankrupt&&myId!=null&&(p.uid===myId||(p.hot&&s.host===myId));
+}
+function mySeat(s){return s.players.findIndex(p=>p.uid&&p.uid===myId)}
+
+function mutate(fn){
+  queue=queue.then(async()=>{
+    try{
+      const snap=await ref.get();
+      const cur=snap.exists?JSON.parse(JSON.stringify(snap.data())):null;
+      const out=fn(cur);
+      if(!out)return;
+      out.v=(out.v||0)+1;
+      await ref.set(out);
+    }catch(e){note('That move did not save ('+((e&&e.code)||'error')+'). Check you have Contributor access and try again.')}
+  });
+  return queue;
+}
+function ok(cur){return cur&&cur.rv===RV}
+function act(fn){mutate(cur=>{if(!ok(cur)||cur.phase!=='play'||!controls(cur,cur.turn))return null;fn(cur);return cur})}
+function hostDo(fn){mutate(cur=>{if(!cur||cur.host!==myId)return null;const r=fn(cur);return r===false?null:(r||cur)})}
+function mut(fn){mutate(cur=>{if(!ok(cur)||cur.phase!=='play')return null;return fn(cur)===false?null:cur})}
+function actAuc(fn){mut(s=>{if(!s.auc||s.stage!=='auction'||!controls(s,s.auc.cur))return false;fn(s)})}
+
+const A={
+  create:()=>mutate(cur=>cur?null:newLobby(myId)),
+  fresh:()=>mutate(cur=>cur&&cur.rv!==RV?newLobby(myId):null),
+  join:()=>mutate(cur=>{if(!ok(cur)||cur.phase!=='lobby'||cur.players.length>=6||cur.players.some(p=>p.uid===myId))return null;cur.players.push({uid:myId});return cur}),
+  leave:()=>mutate(cur=>{if(!ok(cur)||cur.phase!=='lobby'||cur.host===myId)return null;cur.players=cur.players.filter(p=>p.uid!==myId);return cur}),
+  addHot:()=>hostDo(s=>{if(!ok(s)||s.phase!=='lobby'||s.players.length>=6)return false;const n=s.players.filter(p=>p.hot).length+1;s.players.push({hot:true,hn:'Practice '+n})}),
+  remove:i=>hostDo(s=>{if(!ok(s)||s.phase!=='lobby'||(s.players[i]&&s.players[i].uid===s.host))return false;s.players.splice(i,1)}),
+  start:()=>hostDo(s=>{if(!ok(s)||s.phase!=='lobby'||s.players.length<2)return false;startGame(s)}),
+  reset:()=>hostDo(s=>{const f=newLobby(s.host);f.players=s.players.map(p=>p.hot?{hot:true,hn:p.hn}:{uid:p.uid});f.v=s.v||0;return f})
+};
+let draft={from:null,to:null,give:[],get:[],gc:'',rc:''};
+function sendOffer(){
+  const t={from:draft.from,to:draft.to,gs:draft.give.slice(),gc:Math.max(0,Math.floor(+draft.gc||0)),rs:draft.get.slice(),rc:Math.max(0,Math.floor(+draft.rc||0))};
+  mut(s=>controls(s,t.from)&&doOffer(s,t));
+  draft.give=[];draft.get=[];draft.gc='';draft.rc='';
+}
+
+/* ---------- board ---------- */
+function dieEl(v,pop){const d=h('div',{class:'die'+(pop?' pop':''),role:'img','aria-label':'Die showing '+v});const on=PIPS[v]||[];for(let k=0;k<9;k++)d.append(h('i',{class:on.includes(k)?'on':''}));return d}
+
+function cellEl(i,s){
+  const q=SQ[i],side=sideOf(i),[c,r]=coord(i);
+  const live=s&&s.phase!=='lobby';
+  const o=live?s.own[i]:undefined;
+  const el=h('button',{class:`sq t-${q.t} k-${q.k||'x'} s-${side}${side==='c'?' c':''}${sel===i?' sel':''}${live&&s.mort[i]?' mort':''}`,style:`grid-column:${c};grid-row:${r}`,'aria-label':q.n+(q.p?' '+fmtMoney(q.p):''),onclick:()=>{sel=i;render()}});
+  if(q.t==='prop'){
+    const n=live?(s.stands[i]||0):0;
+    const band=h('div',{class:'band',style:'background:'+G[q.g].c});
+    if(n===5)band.append(h('i',{class:'arena'}));else for(let k=0;k<n;k++)band.append(h('i',{class:'stand'}));
+    el.append(band);
+  }
+  const txt=h('div',{class:'txt'});
+  txt.append(h('div',{class:'nm'},q.n));
+  if(q.role)txt.append(h('div',{class:'rl'},q.role));
+  if(side==='c'){
+    let u=q.u;
+    if(q.t==='park'&&live&&(s.pot||0)>0)u='Pot '+fmtMoney(s.pot);
+    if(u)txt.append(h('div',{class:'sub'},u));
+  }
+  if(q.p)txt.append(h('div',{class:'pr'},'£'+q.p));
+  else if(q.t==='tax')txt.append(h('div',{class:'pr'},'£'+q.a));
+  if(q.t!=='prop')txt.append(h('div',{class:'sh'},q.s||q.n));
+  if(o!==undefined)txt.append(h('span',{class:'oc',style:'background:'+PCOL[o]}));
+  if(live){
+    const here=s.players.map((p,pi)=>({p,pi})).filter(x=>!x.p.bankrupt&&x.p.pos===i);
+    if(here.length){const t=h('div',{class:'toks'});here.forEach(x=>t.append(h('span',{class:'tok',style:'background:'+PCOL[x.pi],title:nm(s,x.pi)},x.pi+1)));txt.append(t)}
+  }
+  el.append(txt);
+  return el;
+}
+
+function centreEl(s){
+  const box=h('div',{class:'centre'});
+  box.append(h('div',{class:'logo'},'Football',h('b',null,'Matchday')));
+  const msg=t=>box.append(h('div',{class:'say'},t));
+  if(!ready){msg('Loading the table…');return box}
+  if(!userNS||myId==null){msg('Sign in to claude.ai to play. Your seat is tied to your account.');return box}
+  if(legacy()){
+    msg('A match from the first version is still on the table. Its rules have changed, so it needs to be cleared.');
+    box.append(h('div',{class:'acts'},h('button',{class:'btn',id:'fresh',disabled:!canWrite,onclick:A.fresh},'Start fresh')));
+    return box;
+  }
+  if(!s){
+    msg('No match yet. Start one and you become the host. Then share this page with the people you want to play.');
+    box.append(h('div',{class:'acts'},h('button',{class:'btn',id:'new-match',disabled:!canWrite,onclick:A.create},'New match')));
+    return box;
+  }
+  if(s.phase==='lobby'){
+    const lob=h('div',{class:'lobby'});
+    s.players.forEach((p,i)=>{
+      const row=h('div',{class:'seat'},h('span',{class:'tok',style:'background:'+PCOL[i]},i+1),h('span',{class:'grow'},nm(s,i)+(p.uid===myId?' (you)':'')+(p.uid&&p.uid===s.host?' · host':'')+(p.hot?' · practice seat':'')));
+      if(s.host===myId&&!(p.uid&&p.uid===s.host))row.append(h('button',{onclick:()=>A.remove(i),'aria-label':'Remove seat'},'Remove'));
+      if(p.uid===myId&&s.host!==myId)row.append(h('button',{onclick:A.leave},'Leave'));
+      lob.append(row);
+    });
+    box.append(lob);
+    const acts=h('div',{class:'acts'});
+    const seated=s.players.some(p=>p.uid===myId);
+    if(!seated)acts.append(h('button',{class:'btn',id:'join',disabled:!canWrite||s.players.length>=6,onclick:A.join},'Join the table'));
+    if(s.host===myId){
+      acts.append(h('button',{class:'btn alt',id:'add-hot',disabled:s.players.length>=6,onclick:A.addHot},'Add practice seat'));
+      acts.append(h('button',{class:'btn',id:'start',disabled:s.players.length<2,onclick:A.start},'Kick off'));
+    }
+    box.append(acts);
+    if(s.host!==myId&&seated)msg('Waiting for the host to kick off.');
+    else if(s.host===myId&&s.players.length<2)msg('Need at least two seats. Invite someone, or add a practice seat to try it alone.');
+    return box;
+  }
+  /* play or over */
+  const pop=lastDice!==s.dice.join(',');lastDice=s.dice.join(',');
+  box.append(h('div',{class:'dice'},dieEl(s.dice[0],pop),dieEl(s.dice[1],pop)));
+  if(s.phase==='over'){
+    box.append(h('div',{class:'winner'},nm(s,s.winner)+' wins the league'));
+    if(s.host===myId)box.append(h('div',{class:'acts'},h('button',{class:'btn',id:'again',onclick:A.reset},'Play again')));
+    return box;
+  }
+  if(s.stage==='auction'&&s.auc){
+    const a=s.auc,q=SQ[a.sq];
+    msg(`Auction: ${q.n}, list price ${fmtMoney(q.p)}. ${a.high!=null?'High bid '+fmtMoney(a.bid)+' by '+nm(s,a.high)+'.':'No bids yet.'}`);
+    if(controls(s,a.cur)){
+      const bp=s.players[a.cur];
+      box.append(h('div',{class:'say dim'},nm(s,a.cur)+', your bid. You have '+fmtMoney(bp.cash)+'.'));
+      const acts=h('div',{class:'acts'});
+      [10,50,100].forEach(inc=>acts.append(h('button',{class:'btn',disabled:bp.cash<a.bid+inc,onclick:()=>actAuc(x=>doBid(x,inc))},'Bid '+fmtMoney(a.bid+inc))));
+      acts.append(h('button',{class:'btn alt',id:'fold',onclick:()=>actAuc(doFold)},'Drop out'));
+      box.append(acts);
+    }else box.append(h('div',{class:'say dim'},'Waiting for '+nm(s,a.cur)+' to bid or drop out…'));
+    return box;
+  }
+  const p=s.players[s.turn];
+  msg(fmt(s,s.log[0]||''));
+  const mine=controls(s,s.turn);
+  const acts=h('div',{class:'acts'});
+  if(mine){
+    if(s.stage==='roll'){
+      if(p.inJail){
+        acts.append(h('button',{class:'btn',id:'roll',onclick:()=>act(doRoll)},'Roll for doubles'));
+        acts.append(h('button',{class:'btn alt',disabled:p.cash<50,onclick:()=>act(doBail)},'Pay £50'));
+        if(p.jf.length>0)acts.append(h('button',{class:'btn alt',onclick:()=>act(doCard)},'Use card'));
+      }else acts.append(h('button',{class:'btn',id:'roll',onclick:()=>act(doRoll)},'Roll dice'));
+    }else if(s.stage==='buy'){
+      const q=SQ[s.buy];
+      acts.append(h('button',{class:'btn',id:'buy',disabled:p.cash<q.p,onclick:()=>act(doBuy)},'Buy · '+fmtMoney(q.p)));
+      acts.append(h('button',{class:'btn alt',onclick:()=>act(doPass)},'Auction it'));
+    }else acts.append(h('button',{class:'btn',id:'end',onclick:()=>act(doEnd)},'End turn'));
+    box.append(acts);
+  }else{
+    box.append(h('div',{class:'say dim'},'Waiting for '+nm(s,s.turn)+'…'));
+  }
+  return box;
+}
+
+function renderBoard(){
+  const s=view(),b=$('#board');
+  b.replaceChildren();
+  for(let i=0;i<40;i++)b.append(cellEl(i,s));
+  b.append(h('div',{class:'pitch'},h('div',{class:'half'}),centreEl(s)));
+}
+
+/* ---------- side panel ---------- */
+function infoPanel(s){
+  const live=s&&s.phase!=='lobby';
+  const i=sel!=null?sel:(live&&s.phase==='play'?s.players[s.turn].pos:0);
+  const q=SQ[i];
+  const box=h('div',{class:'panel info'});
+  box.append(h('h2',null,'Square'));
+  box.append(h('h3',null,q.t==='prop'?h('span',{class:'chip',style:'background:'+G[q.g].c}):null,q.n));
+  if(q.t==='prop'){
+    box.append(h('div',{class:'muted'},GN[q.g]+' · '+(isPl(q)?'Player, '+q.role.toLowerCase():'Stadium')+' · '+fmtMoney(q.p)));
+    const u=unitName(q,2),u1=unitName(q,1);
+    const rows=[['Rent',fmtMoney(q.r[0])],['Whole league owned',fmtMoney(q.r[0]*2)],['1 '+u1,fmtMoney(q.r[1])],['2 '+u,fmtMoney(q.r[2])],['3 '+u,fmtMoney(q.r[3])],['4 '+u,fmtMoney(q.r[4])],[topName(q),fmtMoney(q.r[5])],['Each '+u1+' costs',fmtMoney(G[q.g].cost)],['Mortgage value',fmtMoney(q.p/2)]];
+    box.append(h('table',{class:'rt'},rows.map(r=>h('tr',null,h('td',null,r[0]),h('td',null,r[1])))));
+  }else if(q.t==='st'){
+    box.append(h('div',{class:'muted'},'Coach line · '+fmtMoney(q.p)));
+    box.append(h('table',{class:'rt'},[['1 line owned','£25'],['2 lines','£50'],['3 lines','£100'],['4 lines','£200'],['Mortgage value',fmtMoney(q.p/2)]].map(r=>h('tr',null,h('td',null,r[0]),h('td',null,r[1])))));
+  }else if(q.t==='ut'){
+    box.append(h('div',{class:'muted'},'Utility · '+fmtMoney(q.p)+' · mortgage '+fmtMoney(q.p/2)));
+    box.append(h('p',null,'Rent is 4× the dice if the owner has one utility, 10× if they have both.'));
+  }else if(q.t==='park'){
+    box.append(h('p',null,'Pay £20 into the pot. If a different player paid in earlier, you collect their money first. With only two players left, nothing happens.'));
+    if(live)box.append(h('p',{class:'muted'},'Pot now: '+fmtMoney(s.pot||0)+(s.pot>0&&s.potBy!=null?' (from '+nm(s,s.potBy)+')':'')));
+  }else{
+    const d={go:'Pass or land here to collect £200 season-ticket money.',chance:'Draw a Transfer Window card.',chest:'Draw a Fan Club card.',tax:'Pay '+(q.a?fmtMoney(q.a):'')+' to the bank.',jail:'Just watching when you land here. If you are sent off, you wait here: pay £50, use a card, or roll doubles. After three failed rolls you pay £50 and move.',gojail:'Land here and you go straight to the Dugout. No £200.'};
+    box.append(h('p',null,d[q.t]||''));
+  }
+  if(live&&(q.t==='prop'||q.t==='st'||q.t==='ut')){
+    const o=s.own[i];
+    if(o===undefined)box.append(h('p',{class:'muted'},'Unowned.'));
+    else box.append(h('p',null,'Owner: ',h('b',null,nm(s,o)),s.mort[i]?' · mortgaged':(s.stands[i]?' · '+upLabel(q,s.stands[i]):'')));
+  }
+  return box;
+}
+
+function playersPanel(s){
+  const box=h('div',{class:'panel'});
+  box.append(h('h2',null,s.phase==='lobby'?'At the table':'Squad'));
+  s.players.forEach((p,i)=>{
+    const row=h('div',{class:'prow'+(s.phase==='play'&&s.turn===i?' turn':'')+(p.bankrupt?' out':'')});
+    row.append(h('span',{class:'pdot',style:'background:'+PCOL[i]},i+1));
+    row.append(h('span',{class:'pname'},nm(s,i),p.uid&&p.uid===myId?h('small',null,' (you)'):null));
+    if(s.phase!=='lobby'){
+      if(p.inJail)row.append(h('span',{class:'tag red'},'Dugout'));
+      if(p.jf&&p.jf.length>0)row.append(h('span',{class:'tag'},'Card'+(p.jf.length>1?' ×'+p.jf.length:'')));
+      row.append(h('span',{class:'cash'},fmtMoney(p.cash)));
+    }
+    box.append(row);
+  });
+  return box;
+}
+
+function holdingsPanel(s){
+  const mine=s.players.map((p,i)=>i).filter(i=>controls(s,i));
+  if(!mine.length)return null;
+  let cp=mgr!=null&&mine.includes(mgr)?mgr:(s.phase==='play'&&mine.includes(s.turn)?s.turn:mine[0]);
+  const box=h('div',{class:'panel'});
+  box.append(h('h2',null,'Holdings'));
+  if(mine.length>1){
+    box.append(h('div',{style:'margin-bottom:8px'},'Manage ',h('select',{id:'mgr',onchange:e=>{mgr=+e.target.value;render()},style:'font:inherit;padding:3px 6px;border:1px solid var(--line);border-radius:4px;background:var(--surface2);color:var(--ink)'},mine.map(i=>h('option',{value:i,selected:i===cp},nm(s,i))))));
+  }else box.append(h('div',{class:'muted',style:'margin-bottom:6px'},nm(s,cp)));
+  const hold=owned(s,cp);
+  const sup=supply(s);
+  if(!hold.length){box.append(h('p',{class:'muted'},'No grounds yet. Land on one and buy it, win it at auction, or trade for it.'))}
+  const can=s.phase==='play'&&s.stage!=='auction';
+  const list=h('div',{class:'hold'});
+  hold.forEach(i=>{
+    const q=SQ[i],n=s.stands[i]||0;
+    const row=h('div',{class:'hrow'});
+    row.append(h('span',{class:'chip',style:'background:'+(q.t==='prop'?G[q.g].c:'var(--mute)')}));
+    row.append(h('span',{class:'hn'},q.n));
+    row.append(h('span',{class:'hs'},s.mort[i]?'mortgaged':(q.t==='prop'?upLabel(q,n):'')));
+    if(can){
+      if(q.t==='prop'){
+        row.append(h('button',{class:'mini',disabled:!canBuild(s,cp,i),title:'Build for '+fmtMoney(G[q.g].cost),'aria-label':'Build at '+q.n,onclick:()=>mut(x=>controls(x,cp)&&doBuild(x,cp,i))},'+'));
+        row.append(h('button',{class:'mini',disabled:!canSell(s,cp,i),title:'Sell back to the bank for half','aria-label':'Sell at '+q.n,onclick:()=>mut(x=>controls(x,cp)&&doSell(x,cp,i))},'−'));
+      }
+      if(s.mort[i])row.append(h('button',{class:'mini',disabled:!canUnmort(s,cp,i),onclick:()=>mut(x=>controls(x,cp)&&doUnmort(x,cp,i))},'Lift '+fmtMoney(unmortCost(i))));
+      else row.append(h('button',{class:'mini',disabled:!canMort(s,cp,i),onclick:()=>mut(x=>controls(x,cp)&&doMort(x,cp,i))},'Mortgage'));
+    }
+    list.append(row);
+  });
+  box.append(list);
+  box.append(h('p',{class:'muted',style:'margin:8px 0 0;font-size:12px'},'Build, sell and mortgage whenever you like, even on other players\' turns. + builds one (whole league needed, built evenly). − sells one for half. Bank supply: '+sup.small+' stands or trophies, '+sup.big+' Grand Stadiums or Legends.'));
+  return box;
+}
+
+function offerDesc(list,cash){const parts=list.map(i=>SQ[i].n);if(cash)parts.push(fmtMoney(cash));return parts.length?parts.join(', '):'nothing'}
+
+function tradePanel(s){
+  const box=h('div',{class:'panel',id:'trade-panel'});
+  box.append(h('h2',null,'Trade'));
+  if(s.trade){
+    const t=s.trade;
+    box.append(h('p',{style:'margin:0 0 6px'},h('b',null,nm(s,t.from)),' gives ',offerDesc(t.gs,t.gc),'.'));
+    box.append(h('p',{style:'margin:0 0 8px'},h('b',null,nm(s,t.to)),' gives ',offerDesc(t.rs,t.rc),'.'));
+    const [fa,fb]=tradeFees(s,t);
+    if(fa+fb>0)box.append(h('p',{class:'muted',style:'margin:0 0 8px;font-size:12px'},'Mortgaged grounds cost the new owner a bank fee of 10% of the mortgage value: '+nm(s,t.from)+' pays '+fmtMoney(fa)+', '+nm(s,t.to)+' pays '+fmtMoney(fb)+'.'));
+    const row=h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'});
+    if(controls(s,t.to))row.append(h('button',{class:'ghost',id:'accept',disabled:!!s.auc||!validTrade(s,t),onclick:()=>mut(x=>controls(x,x.trade&&x.trade.to)&&doAccept(x))},'Accept'),h('button',{class:'ghost',onclick:()=>mut(x=>controls(x,x.trade&&x.trade.to)&&doDropTrade(x,true))},'Decline'));
+    if(controls(s,t.from))row.append(h('button',{class:'ghost',onclick:()=>mut(x=>controls(x,x.trade&&x.trade.from)&&doDropTrade(x,false))},'Withdraw'));
+    if(row.children.length)box.append(row);
+    if(s.auc)box.append(h('p',{class:'muted',style:'margin:8px 0 0;font-size:12px'},'Offers wait until the auction ends.'));
+    else if(controls(s,t.to)&&!validTrade(s,t))box.append(h('p',{class:'muted',style:'margin:8px 0 0;font-size:12px'},'This offer no longer works. Decline it.'));
+    return box;
+  }
+  const mine=s.players.map((p,i)=>i).filter(i=>controls(s,i));
+  if(!mine.length){box.append(h('p',{class:'muted',style:'margin:0'},'Seated players can offer trades here.'));return box}
+  if(s.auc){box.append(h('p',{class:'muted',style:'margin:0'},'Trades pause during an auction.'));return box}
+  const alive=s.players.map((p,i)=>i).filter(i=>!s.players[i].bankrupt);
+  if(!mine.includes(draft.from)){draft.from=mine[0];draft.give=[];draft.get=[]}
+  const others=alive.filter(i=>i!==draft.from);
+  if(!others.includes(draft.to)){draft.to=others[0];draft.get=[]}
+  if(draft.to==null){box.append(h('p',{class:'muted',style:'margin:0'},'Nobody to trade with.'));return box}
+  draft.give=draft.give.filter(i=>tradable(s,draft.from,i));
+  draft.get=draft.get.filter(i=>tradable(s,draft.to,i));
+  const pick=(id,val,opts,on)=>h('select',{id,onchange:e=>on(+e.target.value),style:'font:inherit;padding:3px 6px;border:1px solid var(--line);border-radius:4px;background:var(--surface2);color:var(--ink);max-width:100%'},opts.map(i=>h('option',{value:i,selected:i===val},nm(s,i))));
+  const top=h('div',{style:'display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px'});
+  if(mine.length>1)top.append('From',pick('tr-from',draft.from,mine,v=>{draft.from=v;draft.give=[];render()}));
+  top.append('Offer to',pick('tr-to',draft.to,others,v=>{draft.to=v;draft.get=[];render()}));
+  box.append(top);
+  const chips=(who,list,key)=>{
+    const props=owned(s,who).filter(i=>tradable(s,who,i));
+    const wrap=h('div',{style:'display:flex;flex-wrap:wrap;gap:4px'});
+    if(!props.length)wrap.append(h('span',{class:'muted'},'No tradable grounds'));
+    props.forEach(i=>{
+      const on=list.includes(i);
+      wrap.append(h('button',{class:'mini'+(on?' on':''),'aria-pressed':on?'true':'false',onclick:()=>{draft[key]=on?list.filter(x=>x!==i):list.concat(i);render()}},h('span',{class:'chip',style:'margin-right:4px;background:'+(SQ[i].t==='prop'?G[SQ[i].g].c:'var(--mute)')}),SQ[i].n+(s.mort[i]?' (mortgaged)':'')));
+    });
+    return wrap;
+  };
+  const cash=(id,key)=>h('input',{type:'number',id,min:0,step:10,inputmode:'numeric',value:draft[key],placeholder:'0','aria-label':'Cash',oninput:e=>{draft[key]=e.target.value},style:'width:88px;font:inherit;padding:3px 6px;border:1px solid var(--line);border-radius:4px;background:var(--surface2);color:var(--ink)'});
+  box.append(h('div',{class:'muted',style:'font-size:12px;margin-bottom:4px'},'You give'),chips(draft.from,draft.give,'give'),h('div',{style:'margin:6px 0 10px;display:flex;gap:6px;align-items:center'},'plus £',cash('tr-gc','gc')));
+  box.append(h('div',{class:'muted',style:'font-size:12px;margin-bottom:4px'},'You get'),chips(draft.to,draft.get,'get'),h('div',{style:'margin:6px 0 10px;display:flex;gap:6px;align-items:center'},'plus £',cash('tr-rc','rc')));
+  const empty=!draft.give.length&&!draft.get.length&&!(+draft.gc>0)&&!(+draft.rc>0);
+  box.append(h('button',{class:'ghost',id:'send-offer',disabled:empty,onclick:sendOffer},'Send offer'));
+  box.append(h('p',{class:'muted',style:'margin:8px 0 0;font-size:12px'},'Grounds in a league with stands or trophies cannot be traded. Sell them first.'));
+  return box;
+}
+
+function logPanel(s){
+  const box=h('div',{class:'panel'});
+  box.append(h('h2',null,'Match log'));
+  if(!s.log.length){box.append(h('p',{class:'muted'},'Nothing yet.'));return box}
+  box.append(h('ul',{class:'logl'},s.log.slice(0,14).map(t=>h('li',null,fmt(s,t)))));
+  return box;
+}
+
+function rulesPanel(open){
+  const box=h('details',{class:'panel'});
+  if(open)box.setAttribute('open','');
+  box.append(h('summary',null,'Rules'));
+  box.append(h('ol',{class:'rules'},
+    h('li',null,'Everyone starts with £1,500. A random player kicks off. Roll two dice and move round the board.'),
+    h('li',null,'Roll doubles and you go again. A third double in a row and you are sent off to the Dugout.'),
+    h('li',null,'Pass or land on Kick-off and collect £200.'),
+    h('li',null,'Land on an unowned ground and you may buy it at its price. If you decline or cannot pay, it goes to auction. Everyone can bid in £10, £50 or £100 steps, or drop out.'),
+    h('li',null,'Land on someone else\'s ground and pay rent. Own a whole league with nothing built and rent doubles. Coach lines pay £25, £50, £100, £200. Utilities pay 4× the dice, or 10× with both.'),
+    h('li',null,'Own a whole league and you can build, evenly across it: four stands (or trophies for players), then a Grand Stadium (or Legend). The bank has 32 small upgrades and 12 big ones. You can build, sell (for half) and mortgage at any time, not only on your turn.'),
+    h('li',null,'Mortgage a ground for half its price. It collects no rent. Lift it by paying that half plus 10%. Receiving a mortgaged ground in a trade or bankruptcy costs a 10% fee on the mortgage value. A ground cannot be mortgaged while its league has stands.'),
+    h('li',null,'The Dugout: you go there from Sent Off!, a third double, or a card. You do not collect £200. To leave, pay £50, use a Get-out card, or roll doubles. After three failed turns you pay £50 and move. You still collect rent while there.'),
+    h('li',null,'Transfer Window and Fan Club cards: 16 each, including Get-out cards that you keep until used.'),
+    h('li',null,'Half-Time: with three or more players, pay £20 into the pot. If a different player paid in earlier, you collect it first. With only two players, nothing happens.'),
+    h('li',null,'Trades: swap grounds and cash with another player, who must accept. Grounds in a league with stands cannot be traded.'),
+    h('li',null,'If you owe more than you have, stands are sold and grounds mortgaged for you. Still short and you are out. Your assets go to the player you owed, or to auction if you owed the bank. Last club standing wins.'),
+    h('li',null,'Not included: auctions when two players want the last stands, and selling Get-out cards.')));
+  return box;
+}
+function sharePanel(){
+  const share=h('div',{class:'panel'});
+  share.append(h('h2',null,'Playing online'));
+  share.append(h('p',{style:'margin:0'},'Use this page\'s Share menu and invite each person by email as a Contributor. They open the page, then tap Join the table. Only people you invite can see it.'));
+  return share;
+}
+
+function renderSide(){
+  const s=view(),side=$('#side');
+  side.replaceChildren();
+  if(!ready)return;
+  if(legacy()){side.append(rulesPanel(false));return}
+  if(!s){side.append(infoPanel(null),sharePanel(),rulesPanel(true));return}
+  side.append(playersPanel(s));
+  if(s.phase==='play')side.append(tradePanel(s));
+  if(s.phase!=='lobby'){
+    const hp=holdingsPanel(s);
+    side.append(infoPanel(s));
+    if(hp)side.append(hp);
+    side.append(logPanel(s));
+    if(s.host===myId){
+      const box=h('div',{class:'panel'});
+      box.append(h('h2',null,'Host'));
+      box.append(h('button',{class:'ghost',id:'reset',onclick:()=>{if(confirmReset){confirmReset=false;A.reset()}else{confirmReset=true;render();setTimeout(()=>{confirmReset=false;render()},5000)}}},confirmReset?'Tap again to end this match':'Back to lobby'));
+      side.append(box);
+    }
+    side.append(rulesPanel(false));
+  }else{
+    side.append(infoPanel(s),sharePanel(),rulesPanel(true));
+  }
+}
+
+function renderHead(){
+  const s=view(),el=$('#status');
+  if(!ready){el.textContent='Loading the table…';return}
+  if(legacy()){el.textContent='Older match on the table';return}
+  if(!s){el.textContent='No match yet';return}
+  if(s.phase==='lobby')el.replaceChildren('Lobby · ',h('b',null,s.players.length+' seated'));
+  else if(s.phase==='over')el.replaceChildren(h('b',null,'Final whistle'));
+  else if(s.stage==='auction'&&s.auc)el.replaceChildren('Auction · ',h('b',null,SQ[s.auc.sq].n));
+  else el.replaceChildren('On the ball · ',h('b',null,nm(s,s.turn)));
+}
+function renderOfferBar(){
+  const s=view(),ob=$('#offerbar');
+  ob.replaceChildren();
+  if(s&&s.phase==='play'&&s.trade&&controls(s,s.trade.to))
+    ob.append(h('button',{class:'offer',onclick:()=>{const el=$('#trade-panel');if(el)el.scrollIntoView({behavior:'smooth',block:'center'})}},nm(s,s.trade.from)+' has offered you a trade. Tap to review.'));
+}
+function render(){
+  renderHead();renderOfferBar();renderBoard();
+  const a=document.activeElement;
+  if(a&&(a.tagName==='INPUT'||a.tagName==='SELECT')&&a.closest('#side'))sideDirty=true;else renderSide();
+}
+document.addEventListener('focusout',()=>{if(sideDirty){sideDirty=false;setTimeout(render,0)}});
+
+async function loadProfiles(s){
+  if(!userNS)return;
+  const ids=[...new Set(s.players.filter(p=>p.uid).map(p=>p.uid))];
+  if(!ids.length)return;
+  const key=ids.join(',');
+  if(key===lastKey)return;
+  lastKey=key;
+  try{prof=await userNS.profiles(ids);render()}catch(e){}
+}
+
+async function boot(){
+  render();
+  let loadTimer=setTimeout(()=>{if(!ready)note('The match table is taking a while to answer. It may be offline.')},10000);
+  try{
+    const [db,user]=await Promise.all([claude.use('db'),claude.use('user')]);
+    userNS=user;
+    if(user){myId=await user.id();canWrite=(await user.can('data.write'))!==false}
+    if(!db){ready=true;clearTimeout(loadTimer);render();return}
+    ref=db.doc('games/main');
+    ref.onSnapshot(snap=>{
+      clearTimeout(loadTimer);ready=true;
+      state=snap.exists?snap.data():null;
+      render();
+      if(state&&state.players)loadProfiles(state);
+    },err=>{clearTimeout(loadTimer);ready=true;note('Lost the connection to the table ('+((err&&err.code)||'error')+').');render()});
+  }catch(e){ready=true;clearTimeout(loadTimer);render()}
+}
+boot();
+</script>

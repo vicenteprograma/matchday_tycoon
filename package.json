@@ -1,0 +1,11 @@
+{
+  "name": "matchday_tycoon",
+  "version": "0.1.0",
+  "description": "Football Matchday: a football-themed property trading board game.",
+  "private": true,
+  "scripts": {
+    "sync": "node scripts/sync-rules.js",
+    "test": "node scripts/sync-rules.js && node --test"
+  },
+  "engines": { "node": ">=18" }
+}
