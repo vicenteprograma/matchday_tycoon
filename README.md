@@ -1,8 +1,8 @@
-# Football Matchday
+# Matchday Tycoon
 
 A football-themed property trading board game for two to six players, played in the browser. Buy stadiums and players, collect rent, build stands and trophies, and bankrupt your rivals.
 
-Everything on the board is original: the stadiums are invented, and so are the players.
+The grounds are real football stadiums; the players are invented.
 
 ## Run it
 
@@ -21,7 +21,7 @@ npm ci
 npm start
 ```
 
-Alone, press **Add practice seat** in the lobby to control extra players yourself.
+Alone, press **Add practice seat** to control extra players yourself, or **Add AI player** to seat a computer opponent that rolls, buys, bids, builds, trades and ends its own turn.
 
 ## Saved matches
 
@@ -73,7 +73,7 @@ No setup needed beyond `npm ci`.
 - Everyone starts with £1,500. Roll two dice and move. Doubles roll again, and a third double sends you to the Dugout.
 - Land on an unowned ground and you may buy it. If you decline, or cannot pay, it is auctioned (£10, £50 or £100 bids, or drop out).
 - Own every ground in a league and rent doubles. Then build evenly across it: four stands (trophies on players), then a Grand Stadium (Legend status on players). The bank holds 32 small upgrades and 12 big ones.
-- Build, sell (for half) and mortgage at any time, even on other players' turns. Lifting a mortgage costs the mortgage value plus 10%. Receiving a mortgaged ground costs a 10% bank fee.
+- Build and sell (for half) only on your own turn. Mortgage and lift mortgages at any time, even on other players' turns. Lifting a mortgage costs the mortgage value plus 10%. Receiving a mortgaged ground costs a 10% bank fee.
 - Coach lines pay £25, £50, £100, £200. Utilities pay 4 times the dice, or 10 times with both.
 - Half-Time: with three or more players, pay £20 into the pot. If a different player paid in earlier, you collect the pot first. With two players, nothing happens.
 - The Dugout: pay £50, use a Get-out card, or roll doubles. After three failed turns you pay £50 and move.

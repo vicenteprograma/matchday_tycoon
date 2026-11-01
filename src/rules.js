@@ -1,4 +1,4 @@
-// Pure game rules for Football Matchday. State in, state out, no browser or network code.
+// Pure game rules for Matchday Tycoon. State in, state out, no browser or network code.
 // This file is the source of truth. It runs on the server (Node) and in the browser page (global MatchdayRules).
 'use strict';
 (function () {
@@ -11,45 +11,45 @@ const P=(n,g,p,r)=>({t:'prop',k:'std',n,g,p,r});
 const PL=(n,role,g,p,r)=>({t:'prop',k:'pl',n,role,g,p,r});
 const SQ=[
   {t:'go',n:'Kick-off',s:'GO',u:'Collect £200'},
-  P('Brookfield Park',0,60,[2,10,30,90,160,250]),
+  P('Boundary Park',0,60,[2,10,30,90,160,250]),
   {t:'chest',n:'Fan Club',s:'FAN'},
   PL('Tomás Valderrama','Goalkeeper',0,60,[4,20,60,180,320,450]),
   {t:'tax',n:'Agent Fees',s:'TAX',a:200},
   {t:'st',n:'Northern Coaches',p:200,s:'BUS'},
-  P('Harbour Road',1,100,[6,30,90,270,400,550]),
+  P('Plainmoor',1,100,[6,30,90,270,400,550]),
   {t:'chance',n:'Transfer Window',s:'XFER'},
   PL('Kai Lindqvist','Defender',1,100,[6,30,90,270,400,550]),
   PL('Emeka Obiora','Full-back',1,120,[8,40,100,300,450,600]),
   {t:'jail',n:'The Dugout',s:'DUG',u:'Suspended / just watching'},
-  P('Ironworks Field',2,140,[10,50,150,450,625,750]),
+  P('The Hawthorns',2,140,[10,50,150,450,625,750]),
   {t:'ut',n:'Floodlight Co.',p:150,s:'LGT'},
   PL('Mateo Salcedo','Winger',2,140,[10,50,150,450,625,750]),
   PL('Hugo Marchetti','Captain',2,160,[12,60,180,500,700,900]),
   {t:'st',n:'Midland Coaches',p:200,s:'BUS'},
-  P('Canal Street',3,180,[14,70,200,550,750,950]),
+  P('Carrow Road',3,180,[14,70,200,550,750,950]),
   {t:'chest',n:'Fan Club',s:'FAN'},
   PL('Jonas Eklund','Midfielder',3,180,[14,70,200,550,750,950]),
-  P('Wharf End',3,200,[16,80,220,600,800,1000]),
+  P('Elland Road',3,200,[16,80,220,600,800,1000]),
   {t:'park',n:'Half-Time',s:'HT',u:'£20 into the pot'},
-  P('Cathedral Quarter',4,220,[18,90,250,700,875,1050]),
+  P('St James\' Park',4,220,[18,90,250,700,875,1050]),
   {t:'chance',n:'Transfer Window',s:'XFER'},
   PL('Ravi Nandakumar','Playmaker',4,220,[18,90,250,700,875,1050]),
   PL('Yusuf Demir','Striker',4,240,[20,100,300,750,925,1100]),
   {t:'st',n:'Southern Coaches',p:200,s:'BUS'},
-  P('Crown Terrace',5,260,[22,110,330,800,975,1150]),
+  P('Goodison Park',5,260,[22,110,330,800,975,1150]),
   PL('Luca Ferrandi','Striker',5,260,[22,110,330,800,975,1150]),
   {t:'ut',n:'Scoreboard Co.',p:150,s:'SCR'},
-  P('Regent Lawn',5,280,[24,120,360,850,1025,1200]),
+  P('Villa Park',5,280,[24,120,360,850,1025,1200]),
   {t:'gojail',n:'Sent Off!',s:'OFF',u:'Straight to the Dugout'},
-  P('Highland Road',6,300,[26,130,390,900,1100,1275]),
+  P('Anfield',6,300,[26,130,390,900,1100,1275]),
   PL('Idris Haddad','Centre-back',6,300,[26,130,390,900,1100,1275]),
   {t:'chest',n:'Fan Club',s:'FAN'},
-  P('Castle Hill',6,320,[28,150,450,1000,1200,1400]),
+  P('Emirates Stadium',6,320,[28,150,450,1000,1200,1400]),
   {t:'st',n:'Eastern Coaches',p:200,s:'BUS'},
   {t:'chance',n:'Transfer Window',s:'XFER'},
   PL('Alessandro Vidal','Forward',7,350,[35,175,500,1100,1300,1500]),
   {t:'tax',n:'Super Tax',s:'TAX',a:100},
-  P('National Arena',7,400,[50,200,600,1400,1700,2000])
+  P('Wembley Stadium',7,400,[50,200,600,1400,1700,2000])
 ];
 const CARDS={
   chance:[
@@ -57,9 +57,9 @@ const CARDS={
     {x:'Advance to the nearest coach line. If it is unowned you may buy it. If owned, pay the owner double rent.',a:'near',v:'st'},
     {x:'Advance to the nearest coach line. If it is unowned you may buy it. If owned, pay the owner double rent.',a:'near',v:'st'},
     {x:'Advance to the nearest floodlight or scoreboard company. If owned, roll the dice and pay the owner ten times the roll.',a:'near',v:'ut'},
-    {x:'Advance to National Arena.',a:'goto',v:39},
-    {x:'Advance to Cathedral Quarter. If you pass Kick-off, collect £200.',a:'goto',v:21},
-    {x:'Advance to Ironworks Field. If you pass Kick-off, collect £200.',a:'goto',v:11},
+    {x:'Advance to Wembley Stadium.',a:'goto',v:39},
+    {x:'Advance to St James\' Park. If you pass Kick-off, collect £200.',a:'goto',v:21},
+    {x:'Advance to The Hawthorns. If you pass Kick-off, collect £200.',a:'goto',v:11},
     {x:'Take the Midland coach. If you pass Kick-off, collect £200.',a:'goto',v:15},
     {x:'Transfer fee income. Collect £50.',a:'cash',v:50},
     {x:'Get out of the Dugout free. Keep this card until needed or sell it.',a:'jfree'},
@@ -129,6 +129,31 @@ function canSell(s,pi,i){
   const q=SQ[i],n=s.stands[i]||0;
   if(s.stage==='auction'||q.t!=='prop'||s.own[i]!==pi||n<1)return false;
   return groupSq(q.g).every(j=>(s.stands[j]||0)<=n);
+}
+/** Why canBuild(s,pi,i) is false, in plain words, or null if it isn't. For a disabled button's tooltip. */
+function buildReason(s,pi,i){
+  const q=SQ[i],p=s.players[pi];
+  if(canBuild(s,pi,i))return null;
+  if(q.t!=='prop'||s.own[i]!==pi)return "You don't own this.";
+  if(!hasSet(s,pi,q.g))return 'You need every ground in the league first.';
+  const grp=groupSq(q.g),n=s.stands[i]||0;
+  if(n>=5)return `Already at ${topName(q)}, the most you can build.`;
+  if(grp.some(j=>s.mort[j]))return 'A ground in this league is mortgaged.';
+  if(!grp.every(j=>(s.stands[j]||0)>=n))return 'Build evenly: the other grounds in this league need this level first.';
+  const sup=supply(s);
+  if(n<4&&sup.small<1)return 'The bank is out of stands and trophies.';
+  if(n===4&&sup.big<1)return `The bank is out of ${topName(q)}s.`;
+  if(p.cash<G[q.g].cost)return "You can't afford it.";
+  return null;
+}
+/** Why canSell(s,pi,i) is false, in plain words, or null if it isn't. For a disabled button's tooltip. */
+function sellReason(s,pi,i){
+  const q=SQ[i],n=s.stands[i]||0;
+  if(canSell(s,pi,i))return null;
+  if(q.t!=='prop'||s.own[i]!==pi)return "You don't own this.";
+  if(n<1)return 'Nothing built here to sell.';
+  if(!groupSq(q.g).every(j=>(s.stands[j]||0)<=n))return 'Sell evenly: the other grounds in this league need to come down first.';
+  return null;
 }
 function canMort(s,pi,i){
   const q=SQ[i];
@@ -456,7 +481,7 @@ function startGame(s){
 const api = {
   RV, G, GN, SQ, CARDS, fmtMoney, isPl, topName, unitName, upLabel, upBuilt,
   owned, groupSq, hasSet, supply, rentFor, aliveCount,
-  canBuild, canSell, canMort, canUnmort, unmortCost, mortFee,
+  canBuild, canSell, canMort, canUnmort, unmortCost, mortFee, buildReason, sellReason,
   tradable, validTrade, tradeFees,
   newLobby, startGame,
   doRoll, doBuy, doPass, doEnd, doBail, doCard,

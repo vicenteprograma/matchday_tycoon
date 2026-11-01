@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Football Matchday</title>
+<title>Matchday Tycoon</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
@@ -168,7 +168,7 @@ table.rt td:last-child{text-align:right;font-family:var(--f-mono);font-variant-n
 
 <div class="page">
   <header class="top">
-    <h1>Football <span>Matchday</span></h1>
+    <h1>Matchday <span>Tycoon</span></h1>
     <div class="status" id="status">Loading the table&hellip;</div>
   </header>
   <div id="note" role="status" aria-live="polite"></div>
@@ -191,7 +191,7 @@ table.rt td:last-child{text-align:right;font-family:var(--f-mono);font-variant-n
 <script src="/rules.js"></script>
 <script>
 'use strict';
-const {RV,G,GN,SQ,CARDS,fmtMoney,isPl,topName,unitName,upLabel,upBuilt,owned,groupSq,hasSet,supply,rentFor,aliveCount,canBuild,canSell,canMort,canUnmort,unmortCost,mortFee,tradable,validTrade,tradeFees}=MatchdayRules;
+const {RV,G,GN,SQ,CARDS,fmtMoney,isPl,topName,unitName,upLabel,upBuilt,owned,groupSq,hasSet,supply,rentFor,aliveCount,canBuild,canSell,canMort,canUnmort,unmortCost,mortFee,buildReason,sellReason,tradable,validTrade,tradeFees}=MatchdayRules;
 
 /* ================= UI ================= */
 const $=q=>document.querySelector(q);
@@ -243,6 +243,7 @@ const A={
   join:()=>sendDo({a:'join',name:pname}),
   leave:()=>sendDo({a:'leave'}),
   addHot:()=>sendDo({a:'addHot'}),
+  addBot:()=>sendDo({a:'addBot'}),
   remove:i=>sendDo({a:'remove',seat:i}),
   takeover:i=>sendDo({a:'takeover',seat:i}),
   start:()=>sendDo({a:'start'}),
@@ -291,13 +292,13 @@ function cellEl(i,s){
 
 function centreEl(s){
   const box=h('div',{class:'centre'});
-  box.append(h('div',{class:'logo'},'Football',h('b',null,'Matchday')));
+  box.append(h('div',{class:'logo'},'Matchday',h('b',null,'Tycoon')));
   const msg=t=>box.append(h('div',{class:'say'},t));
   if(!ready||!s){msg('Connecting to the table…');return box}
   if(s.phase==='lobby'){
     const lob=h('div',{class:'lobby'});
     s.players.forEach((p,i)=>{
-      const row=h('div',{class:'seat'},h('span',{class:'tok',style:'background:'+PCOL[i]},i+1),h('span',{class:'grow'},nm(s,i)+(p.uid===myId?' (you)':'')+(p.uid&&p.uid===s.host?' · host':'')+(p.hot?' · practice seat':'')));
+      const row=h('div',{class:'seat'},h('span',{class:'tok',style:'background:'+PCOL[i]},i+1),h('span',{class:'grow'},nm(s,i)+(p.uid===myId?' (you)':'')+(p.uid&&p.uid===s.host?' · host':'')+(p.hot?' · practice seat':'')+(p.bot?' · AI player':'')));
       if(s.host===myId&&!(p.uid&&p.uid===s.host))row.append(h('button',{onclick:()=>A.remove(i),'aria-label':'Remove seat'},'Remove'));
       if(p.uid===myId&&s.host!==myId)row.append(h('button',{onclick:A.leave},'Leave'));
       lob.append(row);
@@ -308,11 +309,12 @@ function centreEl(s){
     if(!seated)acts.append(h('button',{class:'btn',id:'join',disabled:!canWrite||s.players.length>=6,onclick:A.join},'Join the table'));
     if(s.host===myId){
       acts.append(h('button',{class:'btn alt',id:'add-hot',disabled:s.players.length>=6,onclick:A.addHot},'Add practice seat'));
+      acts.append(h('button',{class:'btn alt',id:'add-bot',disabled:s.players.length>=6,onclick:A.addBot},'Add AI player'));
       acts.append(h('button',{class:'btn',id:'start',disabled:s.players.length<2,onclick:A.start},'Kick off'));
     }
     box.append(acts);
     if(s.host!==myId&&seated)msg('Waiting for the host to kick off.');
-    else if(s.host===myId&&s.players.length<2)msg('Need at least two seats. Invite someone, or add a practice seat to try it alone.');
+    else if(s.host===myId&&s.players.length<2)msg('Need at least two seats. Invite someone, add a practice seat, or add an AI player.');
     return box;
   }
   /* play or over */
@@ -431,6 +433,7 @@ function holdingsPanel(s){
   const sup=supply(s);
   if(!hold.length){box.append(h('p',{class:'muted'},'No grounds yet. Land on one and buy it, win it at auction, or trade for it.'))}
   const can=s.phase==='play'&&s.stage!=='auction';
+  const myTurn=s.phase==='play'&&s.turn===cp;
   const list=h('div',{class:'hold'});
   hold.forEach(i=>{
     const q=SQ[i],n=s.stands[i]||0;
@@ -440,8 +443,8 @@ function holdingsPanel(s){
     row.append(h('span',{class:'hs'},s.mort[i]?'mortgaged':(q.t==='prop'?upLabel(q,n):'')));
     if(can){
       if(q.t==='prop'){
-        row.append(h('button',{class:'mini',disabled:!canBuild(s,cp,i),title:'Build for '+fmtMoney(G[q.g].cost),'aria-label':'Build at '+q.n,onclick:()=>sendDo({a:'build',seat:cp,sq:i})},'+'));
-        row.append(h('button',{class:'mini',disabled:!canSell(s,cp,i),title:'Sell back to the bank for half','aria-label':'Sell at '+q.n,onclick:()=>sendDo({a:'sell',seat:cp,sq:i})},'−'));
+        row.append(h('button',{class:'mini',disabled:!myTurn||!canBuild(s,cp,i),title:!myTurn?'Only on your own turn':(buildReason(s,cp,i)||'Build for '+fmtMoney(G[q.g].cost)),'aria-label':'Build at '+q.n,onclick:()=>sendDo({a:'build',seat:cp,sq:i})},'+'));
+        row.append(h('button',{class:'mini',disabled:!myTurn||!canSell(s,cp,i),title:!myTurn?'Only on your own turn':(sellReason(s,cp,i)||'Sell back to the bank for half'),'aria-label':'Sell at '+q.n,onclick:()=>sendDo({a:'sell',seat:cp,sq:i})},'−'));
       }
       if(s.mort[i])row.append(h('button',{class:'mini',disabled:!canUnmort(s,cp,i),onclick:()=>sendDo({a:'unmort',seat:cp,sq:i})},'Lift '+fmtMoney(unmortCost(i))));
       else row.append(h('button',{class:'mini',disabled:!canMort(s,cp,i),onclick:()=>sendDo({a:'mort',seat:cp,sq:i})},'Mortgage'));
@@ -449,7 +452,7 @@ function holdingsPanel(s){
     list.append(row);
   });
   box.append(list);
-  box.append(h('p',{class:'muted',style:'margin:8px 0 0;font-size:12px'},'Build, sell and mortgage whenever you like, even on other players\' turns. + builds one (whole league needed, built evenly). − sells one for half. Bank supply: '+sup.small+' stands or trophies, '+sup.big+' Grand Stadiums or Legends.'));
+  box.append(h('p',{class:'muted',style:'margin:8px 0 0;font-size:12px'},'Build and sell only on your own turn; mortgage any time, even on other players\' turns. + builds one (whole league needed, built evenly). − sells one for half. Bank supply: '+sup.small+' stands or trophies, '+sup.big+' Grand Stadiums or Legends.'));
   return box;
 }
 

@@ -101,6 +101,33 @@ test('the host can play practice seats and take over a seat that has left', () =
   assert.equal(applyAction(s, 'h', { a: 'roll' }).ok, true);
 });
 
+test('building and selling only work on your own turn; mortgaging works any time', () => {
+  const s = R.newLobby('h');
+  applyAction(s, 'g', { a: 'join', name: 'Guest' });
+  applyAction(s, 'h', { a: 'start' });
+  const league = R.groupSq(0); // the cheapest league: 2 squares
+  league.forEach((i) => { s.own[i] = 0; }); // seat 0 (host) owns the whole league
+  s.players[0].cash = 1000;
+
+  s.turn = 1; s.stage = 'roll'; // it's the guest's turn, not the host's
+  assert.equal(applyAction(s, 'h', { a: 'build', seat: 0, sq: league[0] }).error, 'not_allowed', "can't build off-turn, even on your own ground");
+
+  s.turn = 0;
+  assert.deepEqual(applyAction(s, 'h', { a: 'build', seat: 0, sq: league[0] }), { ok: true }, 'building is fine on your own turn');
+  assert.equal(s.stands[league[0]], 1);
+
+  s.turn = 1;
+  assert.equal(applyAction(s, 'h', { a: 'sell', seat: 0, sq: league[0] }).error, 'not_allowed', "can't sell off-turn either");
+
+  s.turn = 0;
+  assert.deepEqual(applyAction(s, 'h', { a: 'sell', seat: 0, sq: league[0] }), { ok: true });
+  assert.equal(s.stands[league[0]], undefined);
+
+  s.turn = 1; // still not the host's turn
+  assert.deepEqual(applyAction(s, 'h', { a: 'mort', seat: 0, sq: league[0] }), { ok: true }, 'mortgaging stays allowed any time');
+  assert.deepEqual(applyAction(s, 'h', { a: 'unmort', seat: 0, sq: league[0] }), { ok: true }, 'lifting a mortgage too');
+});
+
 test('a late visitor can watch but not join a running match', () => {
   const s = R.newLobby('h');
   applyAction(s, 'h', { a: 'addHot' });

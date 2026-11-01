@@ -125,7 +125,7 @@ test('Half-Time: pay £20 into the pot, collect a different player\'s pot, nothi
 
 test('rent doubles on a full league, then follows the stand table', () => {
   const s = newGame(2);
-  const league = R.groupSq(0); // Brookfield Park, Tomás Valderrama
+  const league = R.groupSq(0); // Boundary Park, Tomás Valderrama
   const first = league[0];
   s.own[first] = 0;
   assert.equal(R.rentFor(s, first, 7), R.SQ[first].r[0]);
@@ -136,6 +136,24 @@ test('rent doubles on a full league, then follows the stand table', () => {
   assert.equal(R.canBuild(s, 0, league[0]), false, 'must build evenly');
   assert.ok(R.doBuild(s, 0, league[1]));
   assert.equal(R.rentFor(s, league[0], 7), R.SQ[league[0]].r[1]);
+});
+
+test('buildReason and sellReason explain a disabled button, and are null once the action is legal', () => {
+  const s = newGame(2);
+  const league = R.groupSq(0); // Boundary Park, Tomás Valderrama
+  s.own[league[0]] = 0;
+  assert.match(R.buildReason(s, 0, league[0]), /every ground in the league/);
+  assert.equal(R.sellReason(s, 0, league[0]), 'Nothing built here to sell.');
+
+  league.forEach((i) => { s.own[i] = 0; });
+  s.players[0].cash = 0;
+  assert.match(R.buildReason(s, 0, league[0]), /afford/);
+
+  s.players[0].cash = 1500;
+  assert.equal(R.buildReason(s, 0, league[0]), null, 'nothing left to explain once building is legal');
+  assert.ok(R.doBuild(s, 0, league[0]));
+  assert.match(R.buildReason(s, 0, league[0]), /evenly/, 'the other ground needs this level first');
+  assert.equal(R.sellReason(s, 0, league[0]), null, 'selling the one you just built is fine');
 });
 
 test('coach lines pay 25, 50, 100, 200', () => {

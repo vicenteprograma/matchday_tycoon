@@ -5,15 +5,19 @@ const R = require('../src/rules.js');
 
 const MAX_SEATS = 6;
 
+// No client token hashes to this: uidOf() in server/index.js always produces a 24-char hex sha256
+// slice, which this string is not. Only the server's own bot-tick code ever passes it to applyAction.
+const BOT_UID = 'bot:ai';
+
 function cleanName(raw, fallback) {
   const n = String(raw == null ? '' : raw).replace(/[\u0000-\u001f\u007f<>]/g, '').trim().slice(0, 20);
   return n || fallback;
 }
 
-/** Does this viewer control the seat? Humans control their own seat; the host also controls practice seats. */
+/** Does this viewer control the seat? Humans control their own seat; the host also controls practice seats; the server itself controls bot seats. */
 function controls(s, seat, uid) {
   const p = s.players[seat];
-  return !!p && !p.bankrupt && !!uid && (p.uid === uid || (!!p.hot && s.host === uid));
+  return !!p && !p.bankrupt && !!uid && (p.uid === uid || (!!p.hot && s.host === uid) || (!!p.bot && uid === BOT_UID));
 }
 
 function seatOf(s, uid) {
@@ -71,6 +75,12 @@ function applyAction(s, uid, msg) {
       s.players.push({ hot: true, hn: 'Practice ' + n });
       return OK;
     }
+    case 'addBot': {
+      if (s.host !== uid || s.phase !== 'lobby' || s.players.length >= MAX_SEATS) return no('not_allowed');
+      const n = s.players.filter((p) => p.bot).length + 1;
+      s.players.push({ bot: true, name: 'Bot ' + n });
+      return OK;
+    }
     case 'remove': {
       const i = int(msg.seat, 0, MAX_SEATS - 1);
       if (s.host !== uid || s.phase !== 'lobby' || i === null || !s.players[i] || s.players[i].uid === s.host) return no('not_allowed');
@@ -95,7 +105,7 @@ function applyAction(s, uid, msg) {
     case 'reset': {
       if (s.host !== uid) return no('not_allowed');
       const fresh = R.newLobby(s.host);
-      fresh.players = s.players.map((p) => (p.hot ? { hot: true, hn: p.hn } : { uid: p.uid, name: p.name }));
+      fresh.players = s.players.map((p) => (p.hot ? { hot: true, hn: p.hn } : p.bot ? { bot: true, name: p.name } : { uid: p.uid, name: p.name }));
       for (const k of Object.keys(s)) delete s[k];
       Object.assign(s, fresh);
       return OK;
@@ -136,13 +146,20 @@ function applyAction(s, uid, msg) {
       if (!s.auc || s.stage !== 'auction' || !controls(s, s.auc.cur, uid)) return no('not_allowed');
       R.doFold(s); return OK;
 
-    /* ---------- any time: build, sell, mortgage ---------- */
-    case 'build': case 'sell': case 'mort': case 'unmort': {
+    /* ---------- building only on your own turn ---------- */
+    case 'build': case 'sell': {
+      const seat = int(msg.seat, 0, MAX_SEATS - 1);
+      const sq = int(msg.sq, 0, 39);
+      if (seat === null || sq === null || seat !== s.turn || !controls(s, seat, uid)) return no('not_allowed');
+      return (a === 'build' ? R.doBuild : R.doSell)(s, seat, sq) ? OK : no('not_allowed');
+    }
+
+    /* ---------- mortgaging: any time, even on other players' turns ---------- */
+    case 'mort': case 'unmort': {
       const seat = int(msg.seat, 0, MAX_SEATS - 1);
       const sq = int(msg.sq, 0, 39);
       if (seat === null || sq === null || !controls(s, seat, uid)) return no('not_allowed');
-      const fn = { build: R.doBuild, sell: R.doSell, mort: R.doMort, unmort: R.doUnmort }[a];
-      return fn(s, seat, sq) ? OK : no('not_allowed');
+      return (a === 'mort' ? R.doMort : R.doUnmort)(s, seat, sq) ? OK : no('not_allowed');
     }
 
     /* ---------- trades ---------- */
@@ -184,4 +201,4 @@ function publicState(s, uid) {
   return out;
 }
 
-module.exports = { applyAction, publicState, controls, seatOf, cleanName, MAX_SEATS };
+module.exports = { applyAction, publicState, controls, seatOf, cleanName, MAX_SEATS, BOT_UID };

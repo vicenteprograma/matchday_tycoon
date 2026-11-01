@@ -1,17 +1,19 @@
 'use strict';
-// Football Matchday server: serves the page and runs one WebSocket game room per invite code.
+// Matchday Tycoon server: serves the page and runs one WebSocket game room per invite code.
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { WebSocketServer } = require('ws');
 const R = require('../src/rules.js');
-const { applyAction, publicState, cleanName } = require('./game.js');
+const { applyAction, publicState, cleanName, BOT_UID } = require('./game.js');
+const Bot = require('./bot.js');
 
 const PORT = Number(process.env.PORT) || 3000;
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
 const MAX_ROOMS = Number(process.env.MAX_ROOMS) || 200;
 const ROOM_TTL_DAYS = Number(process.env.ROOM_TTL_DAYS) || 30;
+const BOT_DELAY_MS = Number(process.env.BOT_DELAY_MS) || 700;
 const STORE = path.join(DATA_DIR, 'rooms.json');
 const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
@@ -35,6 +37,7 @@ function load() {
       if (r && r.state && r.state.rv === R.RV && r.touched > cutoff) rooms.set(code, r);
     }
     console.log(`Loaded ${rooms.size} saved room(s).`);
+    for (const code of rooms.keys()) scheduleBot(code);
   } catch (e) {
     if (e.code !== 'ENOENT') console.error('Could not read saved rooms, starting empty:', e.message);
   }
@@ -78,6 +81,33 @@ function broadcast(code) {
 }
 function touch(r) { r.touched = Date.now(); save(); }
 
+/* ---------- bots ---------- */
+/** code -> pending setTimeout, so a room never has more than one bot move queued up. */
+const botTimers = new Map();
+function scheduleBot(code) {
+  if (botTimers.has(code)) return;
+  const r = rooms.get(code);
+  if (!r || !Bot.decide(r.state)) return;
+  const h = setTimeout(() => { botTimers.delete(code); runBotTick(code); }, BOT_DELAY_MS);
+  h.unref();
+  botTimers.set(code, h);
+}
+function runBotTick(code) {
+  const r = rooms.get(code);
+  if (!r) return;
+  const action = Bot.decide(r.state);
+  if (!action) return;
+  const copy = JSON.parse(JSON.stringify(r.state));
+  let res;
+  try { res = applyAction(copy, BOT_UID, action); } catch (e) { console.error('bot action failed', action.a, e); return; }
+  if (!res.ok) { console.error('bot action rejected', action.a, res.error); return; }
+  copy.v = (copy.v || 0) + 1;
+  r.state = copy;
+  touch(r);
+  broadcast(code);
+  scheduleBot(code);
+}
+
 function handle(ws, raw) {
   let msg;
   try { msg = JSON.parse(raw); } catch { return send(ws, { t: 'error', code: 'bad_json' }); }
@@ -107,7 +137,8 @@ function handle(ws, raw) {
     const res = applyAction(r.state, uid, { a: 'join', name });
     if (res.ok) { r.state.v = (r.state.v || 0) + 1; touch(r); }
     else send(ws, { t: 'notice', code: res.error }); // e.g. match already started: you watch instead
-    return broadcast(code);
+    broadcast(code);
+    return scheduleBot(code);
   }
 
   if (msg.t === 'do') {
@@ -122,7 +153,8 @@ function handle(ws, raw) {
     copy.v = (copy.v || 0) + 1;
     r.state = copy;
     touch(r);
-    return broadcast(c.room);
+    broadcast(c.room);
+    return scheduleBot(c.room);
   }
   send(ws, { t: 'error', code: 'unknown_message' });
 }
@@ -176,6 +208,6 @@ process.on('SIGINT', shutdown);
 
 if (require.main === module) {
   load();
-  server.listen(PORT, () => console.log(`Football Matchday listening on port ${PORT}`));
+  server.listen(PORT, () => console.log(`Matchday Tycoon listening on port ${PORT}`));
 }
 module.exports = { server, rooms, load };

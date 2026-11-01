@@ -1,7 +1,7 @@
 {
   "name": "matchday_tycoon",
   "version": "0.1.0",
-  "description": "Football Matchday: a football-themed property trading board game.",
+  "description": "Matchday Tycoon: a football-themed property trading board game.",
   "private": true,
   "scripts": {
     "test": "node --test",
