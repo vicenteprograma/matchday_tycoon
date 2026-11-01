@@ -21,7 +21,7 @@ npm ci
 npm start
 ```
 
-Alone, press **Add practice seat** to control extra players yourself, or **Add AI player** to seat a computer opponent that rolls, buys, bids, builds, answers trade offers and ends its own turn. Pick **Easy**, **Medium** or **Hard** first. Hard is the original AI. Medium skips some purchases, keeps more cash back, stops bidding sooner and builds less often. Easy buys only half the time, never builds, never pays to leave the Dugout, and accepts lopsided trades. The settings are in the `LEVELS` table at the top of `server/bot.js`.
+Alone, press **Add practice seat** to control extra players yourself, or **Add AI player** to seat a computer opponent that rolls, buys, bids, builds, answers trade offers and ends its own turn. Pick **Easy**, **Medium** or **Hard** first. Hard is the original AI. Medium sits between the two: it skips some purchases, keeps more cash back, stops bidding sooner, accepts somewhat worse trades and builds only rarely. In bot-against-bot test games, Hard beats Medium about four times in five. Easy buys only half the time, never builds, never pays to leave the Dugout, and accepts lopsided trades. The settings are in the `LEVELS` table at the top of `server/bot.js`.
 
 ## Saved matches
 

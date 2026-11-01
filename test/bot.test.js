@@ -129,7 +129,7 @@ test('buying: easy and medium skip some purchases and want more cash left over',
   assert.deepEqual(Bot.decide(s, () => 0), { a: 'pass' });
 });
 
-test('building: hard always builds, medium sometimes, easy never', () => {
+test('building: hard always builds, medium only rarely, easy never', () => {
   const s = allBotGame(2);
   const me = s.turn;
   R.groupSq(0).forEach((i) => { s.own[i] = me; }); // the whole brown league
@@ -138,7 +138,8 @@ test('building: hard always builds, medium sometimes, easy never', () => {
   setLevel(s, me, 'hard');
   assert.equal(Bot.decide(s, () => 0.99).a, 'build');
   setLevel(s, me, 'medium');
-  assert.equal(Bot.decide(s, () => 0.1).a, 'build');
+  assert.equal(Bot.decide(s, () => 0.005).a, 'build', 'medium builds on about 1 in 100 chances');
+  assert.equal(Bot.decide(s, () => 0.1).a, 'end');
   assert.equal(Bot.decide(s, () => 0.9).a, 'end');
   setLevel(s, me, 'easy');
   assert.equal(Bot.decide(s, () => 0).a, 'end');
