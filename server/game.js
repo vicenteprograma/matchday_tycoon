@@ -8,6 +8,7 @@ const MAX_SEATS = 6;
 // No client token hashes to this: uidOf() in server/index.js always produces a 24-char hex sha256
 // slice, which this string is not. Only the server's own bot-tick code ever passes it to applyAction.
 const BOT_UID = 'bot:ai';
+const BOT_LEVELS = ['easy', 'medium', 'hard'];
 
 function cleanName(raw, fallback) {
   const n = String(raw == null ? '' : raw).replace(/[\u0000-\u001f\u007f<>]/g, '').trim().slice(0, 20);
@@ -78,7 +79,8 @@ function applyAction(s, uid, msg) {
     case 'addBot': {
       if (s.host !== uid || s.phase !== 'lobby' || s.players.length >= MAX_SEATS) return no('not_allowed');
       const n = s.players.filter((p) => p.bot).length + 1;
-      s.players.push({ bot: true, name: 'Bot ' + n });
+      const level = BOT_LEVELS.includes(msg.level) ? msg.level : 'medium';
+      s.players.push({ bot: true, level, name: 'Bot ' + n + ' (' + level + ')' });
       return OK;
     }
     case 'remove': {
@@ -105,7 +107,7 @@ function applyAction(s, uid, msg) {
     case 'reset': {
       if (s.host !== uid) return no('not_allowed');
       const fresh = R.newLobby(s.host);
-      fresh.players = s.players.map((p) => (p.hot ? { hot: true, hn: p.hn } : p.bot ? { bot: true, name: p.name } : { uid: p.uid, name: p.name }));
+      fresh.players = s.players.map((p) => (p.hot ? { hot: true, hn: p.hn } : p.bot ? { bot: true, level: p.level, name: p.name } : { uid: p.uid, name: p.name }));
       for (const k of Object.keys(s)) delete s[k];
       Object.assign(s, fresh);
       return OK;
@@ -201,4 +203,4 @@ function publicState(s, uid) {
   return out;
 }
 
-module.exports = { applyAction, publicState, controls, seatOf, cleanName, MAX_SEATS, BOT_UID };
+module.exports = { applyAction, publicState, controls, seatOf, cleanName, MAX_SEATS, BOT_UID, BOT_LEVELS };
