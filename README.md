@@ -1,8 +1,8 @@
 # Matchday Tycoon
 
-A football-themed property trading board game for two to six players, played in the browser. Buy stadiums and players, collect rent, build stands and trophies, and bankrupt your rivals.
+A football-themed property trading board game for two to six players, played in the browser. Buy stadiums, collect rent, build stands, and bankrupt your rivals.
 
-The grounds are real football stadiums; the players are invented.
+Every ground on the board is a real football stadium, from England, the Netherlands, Portugal, Italy, France, Germany, Brazil and Spain.
 
 ## Run it
 
@@ -72,7 +72,7 @@ No setup needed beyond `npm ci`.
 
 - Everyone starts with £1,500. Roll two dice and move. Doubles roll again, and a third double sends you to the Dugout.
 - Land on an unowned ground and you may buy it. If you decline, or cannot pay, it is auctioned (£10, £50 or £100 bids, or drop out).
-- Own every ground in a league and rent doubles. Then build evenly across it: four stands (trophies on players), then a Grand Stadium (Legend status on players). The bank holds 32 small upgrades and 12 big ones.
+- Own every ground in a league and rent doubles. Then build evenly across it: four stands, then a Grand Stadium. The bank holds 32 small upgrades and 12 big ones.
 - Build and sell (for half) only on your own turn. Mortgage and lift mortgages at any time, even on other players' turns. Lifting a mortgage costs the mortgage value plus 10%. Receiving a mortgaged ground costs a 10% bank fee.
 - Coach lines pay £25, £50, £100, £200. Utilities pay 4 times the dice, or 10 times with both.
 - Half-Time: with three or more players, pay £20 into the pot. If a different player paid in earlier, you collect the pot first. With two players, nothing happens.

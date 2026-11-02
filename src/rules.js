@@ -13,41 +13,41 @@ const SQ=[
   {t:'go',n:'Kick-off',s:'GO',u:'Collect £200'},
   P('Boundary Park',0,60,[2,10,30,90,160,250]),
   {t:'chest',n:'Fan Club',s:'FAN'},
-  PL('Tomás Valderrama','Goalkeeper',0,60,[4,20,60,180,320,450]),
+  P('De Kuip',0,60,[4,20,60,180,320,450]),
   {t:'tax',n:'Agent Fees',s:'TAX',a:200},
   {t:'st',n:'Northern Coaches',p:200,s:'BUS'},
   P('Plainmoor',1,100,[6,30,90,270,400,550]),
   {t:'chance',n:'Transfer Window',s:'XFER'},
-  PL('Kai Lindqvist','Defender',1,100,[6,30,90,270,400,550]),
-  PL('Emeka Obiora','Full-back',1,120,[8,40,100,300,450,600]),
+  P('Estádio do Dragão',1,100,[6,30,90,270,400,550]),
+  P('Estádio José Alvalade',1,120,[8,40,100,300,450,600]),
   {t:'jail',n:'The Dugout',s:'DUG',u:'Suspended / just watching'},
   P('The Hawthorns',2,140,[10,50,150,450,625,750]),
   {t:'ut',n:'Floodlight Co.',p:150,s:'LGT'},
-  PL('Mateo Salcedo','Winger',2,140,[10,50,150,450,625,750]),
-  PL('Hugo Marchetti','Captain',2,160,[12,60,180,500,700,900]),
+  P('Stadio Olimpico',2,140,[10,50,150,450,625,750]),
+  P('Parc des Princes',2,160,[12,60,180,500,700,900]),
   {t:'st',n:'Midland Coaches',p:200,s:'BUS'},
   P('Carrow Road',3,180,[14,70,200,550,750,950]),
   {t:'chest',n:'Fan Club',s:'FAN'},
-  PL('Jonas Eklund','Midfielder',3,180,[14,70,200,550,750,950]),
+  P('Signal Iduna Park',3,180,[14,70,200,550,750,950]),
   P('Elland Road',3,200,[16,80,220,600,800,1000]),
   {t:'park',n:'Half-Time',s:'HT',u:'£20 into the pot'},
   P('St James\' Park',4,220,[18,90,250,700,875,1050]),
   {t:'chance',n:'Transfer Window',s:'XFER'},
-  PL('Ravi Nandakumar','Playmaker',4,220,[18,90,250,700,875,1050]),
-  PL('Yusuf Demir','Striker',4,240,[20,100,300,750,925,1100]),
+  P('Allianz Arena',4,220,[18,90,250,700,875,1050]),
+  P('San Siro',4,240,[20,100,300,750,925,1100]),
   {t:'st',n:'Southern Coaches',p:200,s:'BUS'},
   P('Goodison Park',5,260,[22,110,330,800,975,1150]),
-  PL('Luca Ferrandi','Striker',5,260,[22,110,330,800,975,1150]),
+  P('Maracanã',5,260,[22,110,330,800,975,1150]),
   {t:'ut',n:'Scoreboard Co.',p:150,s:'SCR'},
   P('Villa Park',5,280,[24,120,360,850,1025,1200]),
   {t:'gojail',n:'Sent Off!',s:'OFF',u:'Straight to the Dugout'},
   P('Anfield',6,300,[26,130,390,900,1100,1275]),
-  PL('Idris Haddad','Centre-back',6,300,[26,130,390,900,1100,1275]),
+  P('Santiago Bernabéu',6,300,[26,130,390,900,1100,1275]),
   {t:'chest',n:'Fan Club',s:'FAN'},
   P('Emirates Stadium',6,320,[28,150,450,1000,1200,1400]),
   {t:'st',n:'Eastern Coaches',p:200,s:'BUS'},
   {t:'chance',n:'Transfer Window',s:'XFER'},
-  PL('Alessandro Vidal','Forward',7,350,[35,175,500,1100,1300,1500]),
+  P('Camp Nou',7,350,[35,175,500,1100,1300,1500]),
   {t:'tax',n:'Super Tax',s:'TAX',a:100},
   P('Wembley Stadium',7,400,[50,200,600,1400,1700,2000])
 ];
@@ -65,7 +65,7 @@ const CARDS={
     {x:'Get out of the Dugout free. Keep this card until needed or sell it.',a:'jfree'},
     {x:'A heavy tackle. Go back three spaces.',a:'back'},
     {x:'Sent off! Go directly to the Dugout. Do not pass Kick-off. Do not collect £200.',a:'jail'},
-    {x:'Pitch repairs. Pay £25 for each stand or trophy and £100 for each Grand Stadium or Legend.',a:'repairs',v:25,w:100},
+    {x:'Pitch repairs. Pay £25 for each stand and £100 for each Grand Stadium.',a:'repairs',v:25,w:100},
     {x:'Pay a £15 fine for a late team bus.',a:'cash',v:-15},
     {x:'You have been elected club chairman. Pay each player £50.',a:'payeach',v:50},
     {x:'Your building loan matures. Collect £150.',a:'cash',v:150}],
@@ -83,7 +83,7 @@ const CARDS={
     {x:'Hospital fees. Pay £100.',a:'cash',v:-100},
     {x:'School fees. Pay £50.',a:'cash',v:-50},
     {x:'Receive a £25 consultancy fee.',a:'cash',v:25},
-    {x:'Street repairs. Pay £40 for each stand or trophy and £115 for each Grand Stadium or Legend.',a:'repairs',v:40,w:115},
+    {x:'Street repairs. Pay £40 for each stand and £115 for each Grand Stadium.',a:'repairs',v:40,w:115},
     {x:'You have won second prize in a fan beauty contest. Collect £10.',a:'cash',v:10},
     {x:'You inherit £100.',a:'cash',v:100}]
 };
@@ -141,7 +141,7 @@ function buildReason(s,pi,i){
   if(grp.some(j=>s.mort[j]))return 'A ground in this league is mortgaged.';
   if(!grp.every(j=>(s.stands[j]||0)>=n))return 'Build evenly: the other grounds in this league need this level first.';
   const sup=supply(s);
-  if(n<4&&sup.small<1)return 'The bank is out of stands and trophies.';
+  if(n<4&&sup.small<1)return 'The bank is out of stands.';
   if(n===4&&sup.big<1)return `The bank is out of ${topName(q)}s.`;
   if(p.cash<G[q.g].cost)return "You can't afford it.";
   return null;
